@@ -39,6 +39,14 @@ algorithm
   (true,fileName) := serializeWork(code,withOperations);
 end serialize;
 
+function serializePARMOD
+  input SimCode.SimCode code;
+  input Boolean withOperations;
+  output String fileName;
+algorithm
+  (true,fileName) := serializePARMODWork(code,withOperations);
+end serializePARMOD;
+
 import Absyn;
 import BackendDAE;
 import DAE;
@@ -110,6 +118,40 @@ algorithm
       then (false,"");
   end matchcontinue;
 end serializeWork;
+
+function serializePARMODWork "Always succeeds in order to clean-up external objects"
+  input SimCode.SimCode code;
+  input Boolean withOperations;
+  output Boolean success; // We always need to return in order to clean up external objects
+  output String fileName;
+protected
+  File.File file = File.File();
+algorithm
+  (success,fileName) := matchcontinue code
+    local
+      SimCode.ModelInfo mi;
+      SimCodeVar.SimVars vars;
+      list<SimCode.SimEqSystem> eqs;
+    case SimCode.SIMCODE(modelInfo=mi as SimCode.MODELINFO(vars=vars))
+      equation
+        fileName = code.fileNamePrefix + "_ode.json";
+        File.open(file,fileName,File.Mode.Write);
+        File.write(file, "{\"format\":\"ParModlica task system info\",\"version\":1,\n\"info\":{\"name\":");
+        serializePath(file, mi.name);
+        File.write(file, ",\"description\":\"");
+        File.writeEscape(file, mi.description, escape=JSON);
+        File.write(file, "\"},\n\"ode-equations\":[");
+        // Handle no comma for the first equation
+        File.write(file,"{\"eqIndex\":0,\"tag\":\"dummy\"}");
+        min(serializeEquation(file,eq,"regular",withOperations) for eq in SimCodeUtil.sortEqSystems(List.flatten(code.odeEquations)));
+        File.write(file, "\n]\n}");
+      then (true,fileName);
+    else
+      equation
+        Error.addInternalError("SerializeModelInfo.serialize failed", sourceInfo());
+      then (false,"");
+  end matchcontinue;
+end serializePARMODWork;
 
 function serializeVars
   input File.File file;
@@ -430,10 +472,13 @@ function serializeEquation
   input Boolean first = false;
   input Integer assign_type = 0 "0: normal equation, 1: torn equation, 2: jacobian equation";
   output Boolean success;
+  import collectCrefsInExp = Expression.extractCrefsFromExpHandleDerPreStart;
+  import collectCrefsInStmt = Expression.extractUniqueCrefsFromStatments2;
 algorithm
   if not first then
     File.write(file, ",");
   end if;
+  try
   success := match eq
     local
       Integer i,j;
@@ -442,7 +487,7 @@ algorithm
       SimCode.LinearSystem lSystem, atL;
       SimCode.NonlinearSystem nlSystem, atNL;
       BackendDAE.WhenOperator whenOp;
-      list<DAE.ComponentRef> crefs;
+      list<DAE.ComponentRef> crefs,crefs2;
 
     case SimCode.SES_RESIDUAL() equation
       File.write(file, "\n{\"eqIndex\":");
@@ -454,7 +499,7 @@ algorithm
       File.write(file, ",\"section\":\"");
       File.write(file, section);
       File.write(file, "\",\"tag\":\"residual\",\"uses\":[");
-      serializeUses(file,Expression.extractUniqueCrefsFromExp(eq.exp));
+      serializeUses(file,collectCrefsInExp(eq.exp));
       File.write(file, "],\"equation\":[\"");
       File.writeEscape(file,expStr(eq.exp),escape=JSON);
       File.write(file, "\"],\"source\":");
@@ -480,7 +525,7 @@ algorithm
       end if;
       writeCref(file,eq.cref,escape=JSON);
       File.write(file, "\"],\"uses\":[");
-      serializeUses(file,Expression.extractUniqueCrefsFromExp(eq.exp));
+      serializeUses(file,collectCrefsInExp(eq.exp));
       File.write(file, "],\"equation\":[\"");
       File.writeEscape(file,expStr(eq.exp),escape=JSON);
       File.write(file, "\"],\"source\":");
@@ -532,7 +577,7 @@ algorithm
       end if;
       writeCref(file,Expression.expCref(eq.lhs),escape=JSON);
       File.write(file, "\"],\"uses\":[");
-      serializeUses(file,Expression.extractUniqueCrefsFromExp(eq.exp));
+      serializeUses(file,collectCrefsInExp(eq.exp));
       File.write(file, "],\"equation\":[\"");
       File.writeEscape(file,expStr(eq.exp),escape=JSON);
       File.write(file, "\"],\"source\":");
@@ -721,7 +766,7 @@ algorithm
       File.write(file, section + "\",\"tag\":\"algorithm\",\"defines\":[\"");
       writeCref(file, Expression.expCref(stmt.exp1),escape=JSON);
       File.write(file, "\"],\"uses\":[");
-      serializeUses(file,Expression.extractUniqueCrefsFromExp(stmt.exp));
+      serializeUses(file,collectCrefsInExp(stmt.exp));
       File.write(file, "],\"equation\":[");
       serializeList(file,eq.statements,serializeStatement);
       File.write(file, "],\"source\":");
@@ -737,7 +782,17 @@ algorithm
         File.writeInt(file, parent);
       end if;
       File.write(file, ",\"section\":\"");
-      File.write(file, section + "\",\"tag\":\"algorithm\",\"equation\":[");
+      File.write(file, section);
+      File.write(file, "\",\"tag\":\"algorithm\"");
+      (crefs,crefs2) = collectCrefsInStmt(eq.statements);
+      if(listLength(crefs) > 0) then
+        File.write(file, ",\"defines\":[");
+        serializeUses(file,crefs);
+        File.write(file, "]");
+      end if;
+      File.write(file, ",\"uses\":[");
+      serializeUses(file,crefs2);
+      File.write(file, "],\"equation\":[");
       serializeList(file,eq.statements,serializeStatement);
       File.write(file, "],\"source\":");
       serializeSource(file,Algorithm.getStatementSource(stmt),withOperations);
@@ -752,7 +807,17 @@ algorithm
         File.writeInt(file, parent);
       end if;
       File.write(file, ",\"section\":\"");
-      File.write(file, section + "\",\"tag\":\"algorithm\",\"equation\":[");
+      File.write(file, section);
+      File.write(file, "\",\"tag\":\"algorithm\"");
+      (crefs,crefs2) = collectCrefsInStmt(eq.statements);
+      if(listLength(crefs) > 0) then
+        File.write(file, ",\"defines\":[");
+        serializeUses(file,crefs);
+        File.write(file, "]");
+      end if;
+      File.write(file, ",\"uses\":[");
+      serializeUses(file,crefs2);
+      File.write(file, "],\"equation\":[");
       serializeList(file,eq.statements,serializeStatement);
       File.write(file, "],\"source\":");
       serializeSource(file,Algorithm.getStatementSource(stmt),withOperations);
@@ -935,7 +1000,7 @@ algorithm
             File.write(file, "\",\"tag\":\"when\",\"defines\":[");
             serializeExp(file,whenOp.left);
             File.write(file, "],\"uses\":[");
-            serializeUses(file,List.union(eq.conditions,Expression.extractUniqueCrefsFromExp(whenOp.right)));
+            serializeUses(file,List.union(eq.conditions,collectCrefsInExp(whenOp.right)));
             File.write(file, "],\"equation\":[");
             serializeExp(file,whenOp.right);
             File.write(file, "],\"source\":");
@@ -946,7 +1011,7 @@ algorithm
             File.write(file, "\",\"tag\":\"when\",\"defines\":[");
             serializeCref(file,whenOp.stateVar);
             File.write(file, "],\"uses\":[");
-            serializeUses(file,List.union(eq.conditions,Expression.extractUniqueCrefsFromExp(whenOp.value)));
+            serializeUses(file,List.union(eq.conditions,collectCrefsInExp(whenOp.value)));
             File.write(file, "],\"equation\":[");
             serializeExp(file,whenOp.value);
             File.write(file, "],\"source\":");
@@ -956,7 +1021,7 @@ algorithm
           case whenOp as BackendDAE.ASSERT() equation
             File.write(file, "\",\"tag\":\"when\"");
             File.write(file, ",\"uses\":[");
-            crefs = listAppend(Expression.extractUniqueCrefsFromExp(whenOp.condition), Expression.extractUniqueCrefsFromExp(whenOp.message));
+            crefs = listAppend(collectCrefsInExp(whenOp.condition), collectCrefsInExp(whenOp.message));
             serializeUses(file,List.union(eq.conditions,crefs));
             File.write(file, "],\"equation\":[");
             serializeExp(file,whenOp.message);
@@ -967,7 +1032,7 @@ algorithm
           case whenOp as BackendDAE.TERMINATE() equation
             File.write(file, "\",\"tag\":\"when\"");
             File.write(file, ",\"uses\":[");
-            serializeUses(file,List.union(eq.conditions,Expression.extractUniqueCrefsFromExp(whenOp.message)));
+            serializeUses(file,List.union(eq.conditions,collectCrefsInExp(whenOp.message)));
             File.write(file, "],\"equation\":[");
             serializeExp(file,whenOp.message);
             File.write(file, "],\"source\":");
@@ -977,7 +1042,7 @@ algorithm
           case whenOp as BackendDAE.NORETCALL() equation
             File.write(file, "\",\"tag\":\"when\"");
             File.write(file, ",\"uses\":[");
-            serializeUses(file,List.union(eq.conditions,Expression.extractUniqueCrefsFromExp(whenOp.exp)));
+            serializeUses(file,List.union(eq.conditions,collectCrefsInExp(whenOp.exp)));
             File.write(file, "],\"equation\":[");
             serializeExp(file,whenOp.exp);
             File.write(file, "],\"source\":");
@@ -1012,7 +1077,7 @@ algorithm
       end if;
       writeCref(file,eq.cref,escape=JSON);
       File.write(file, "\"],\"uses\":[");
-      serializeUses(file,Expression.extractUniqueCrefsFromExp(eq.exp));
+      serializeUses(file,collectCrefsInExp(eq.exp));
       File.write(file, "],\"equation\":[\"");
       File.writeEscape(file,expStr(eq.exp),escape=JSON);
       File.write(file, "\"],\"source\":");
@@ -1024,6 +1089,14 @@ algorithm
       Error.addInternalError("serializeEquation failed: " + anyString(eq), sourceInfo());
     then fail();
   end match;
+  else
+    _ := match eq
+      case _
+        algorithm
+          print("here" + anyString(eq));
+        then fail();
+    end match;
+  end try;
 end serializeEquation;
 
 function serializeLinearCell
@@ -1149,17 +1222,52 @@ end serializeVarKind;
 function serializeUses
   input File.File file;
   input list<DAE.ComponentRef> crefs;
+protected
+  DAE.ComponentRef cr;
+  list<DAE.ComponentRef> rest;
 algorithm
+
+  if listEmpty(crefs) then return; end if;
+
+  cr::rest := crefs;
+  _ := match cr
+    case DAE.WILD() then ();
+    else
+      algorithm
+        File.write(file, "\"");
+        writeCref(file, cr, escape=JSON);
+        File.write(file, "\"");
+      then ();
+  end match;
+
+  for cr in rest loop
+    _ := match cr
+        case DAE.WILD() then ();
+        else
+          algorithm
+            File.write(file, ",\"");
+            writeCref(file, cr, escape=JSON);
+            File.write(file, "\"");
+          then ();
+    end match;
+  end for;
+
+  /*
   _ := match crefs
     local
       DAE.ComponentRef cr;
       list<DAE.ComponentRef> rest;
     case {} then ();
+    case {DAE.WILD()} then ();
     case {cr}
       equation
         File.write(file, "\"");
         writeCref(file, cr, escape=JSON);
         File.write(file, "\"");
+      then ();
+    case DAE.WILD()::rest
+      equation
+        serializeUses(file,rest);
       then ();
     case cr::rest
       equation
@@ -1169,6 +1277,7 @@ algorithm
         serializeUses(file,rest);
       then ();
   end match;
+  */
 end serializeUses;
 
 function serializeStatement

@@ -1,19 +1,20 @@
-TOP_BUILDDIR = ../../../build/
+OMBUILDDIR = $(realpath ../../../../)/build
+OMCOMPILER_ROOT = ../../../
 
-OPENMODELICA_INC=$(TOP_BUILDDIR)/include/omc/c/
+OPENMODELICA_INC=$(OMBUILDDIR)/include/omc/c/
 PARMODELICAAUTO_INC=$(OPENMODELICA_INC)/ParModelica/auto/
-OPENMODELICA_LIB=$(TOP_BUILDDIR)/lib/omc/
-OPENMODELICA_BIN=$(TOP_BUILDDIR)/bin/
+OPENMODELICA_LIB=$(OMBUILDDIR)/lib/omc/
+OPENMODELICA_BIN=$(OMBUILDDIR)/bin/
 
 TBB_INC = $(OMC_TBB_INC)
 TBB_LIB = $(OMC_TBB_LIB)
 BOOST_HOME = $(OMDEV)/lib/3rdParty/boost-1_49
-INCDIRS = -I"../../c" -I$(TBB_INC) -I$(BOOST_HOME) -I"../pugixml-1.2/src/" 
+INCDIRS = -I"../../c" -I$(TBB_INC) -I$(BOOST_HOME) -I$(OMCOMPILER_ROOT)/3rdParty/pugixml/src/ -I$(OMCOMPILER_ROOT)/3rdParty/gc/include
 
 CC=gcc
-CXX=g++
-CFLAGS= -O3 -Wall 
-CPPFLAGS= -O3 -Wall
+CXX=g++ -std=c++11
+CFLAGS= -g -Wall
+CPPFLAGS= -g -Wall
 
 OS_SRCS = pm_win_timer.cpp
 

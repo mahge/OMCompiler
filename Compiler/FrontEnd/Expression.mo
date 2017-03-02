@@ -81,6 +81,7 @@ protected import Static;
 protected import System; // stringReal
 protected import Types;
 protected import Util;
+protected import DAEDump;
 
 /***************************************************/
 /* transform to other types */
@@ -5011,6 +5012,80 @@ end containsInitialCall;
 /* traverse DAE.Exp */
 /***************************************************/
 
+public function traverseExpBottomUpHandleDerPreStart<T>
+  input DAE.Exp inExp;
+  input FuncExpType inFunc;
+  input T inExtArg;
+  output DAE.Exp outExp;
+  output T outExtArg;
+
+  partial function FuncExpType
+    input DAE.Exp inExp;
+    input T inExtArg;
+    output DAE.Exp outExp;
+    output T outExtArg;
+  end FuncExpType;
+algorithm
+  (outExp, outExtArg) := match (inExp)
+    local
+      T ext_arg;
+      DAE.Exp e1;
+      DAE.ComponentRef cr;
+      DAE.Type tp;
+
+      case DAE.CALL(path=Absyn.IDENT(name = "der"), expLst={e1})
+        algorithm
+          DAE.CREF(cr,tp) := e1;
+          e1 := DAE.CREF(ComponentReference.crefPrefixDer(cr),tp);
+          (_, ext_arg) := traverseExpBottomUpHandleDerPreStart(e1, inFunc, inExtArg);
+        then
+          (inExp, ext_arg);
+
+      case DAE.CALL(path=Absyn.IDENT(name = "$_start"), expLst={e1})
+        algorithm
+          DAE.CREF(cr,tp) := e1;
+          e1 := DAE.CREF(ComponentReference.crefPrefixStart(cr),tp);
+          (_, ext_arg) := traverseExpBottomUpHandleDerPreStart(e1, inFunc, inExtArg);
+        then
+          (inExp, ext_arg);
+
+      case DAE.CALL(path=Absyn.IDENT(name = "pre"), expLst={e1})
+        algorithm
+          DAE.CREF(cr,tp) := e1;
+          e1 := DAE.CREF(ComponentReference.crefPrefixPre(cr),tp);
+          (_, ext_arg) := traverseExpBottomUpHandleDerPreStart(e1, inFunc, inExtArg);
+        then
+          (inExp, ext_arg);
+
+      else
+        algorithm
+          (e1, ext_arg) := traverseExpBottomUp(inExp, inFunc, inExtArg);
+        then (e1, ext_arg);
+  end match;
+end traverseExpBottomUpHandleDerPreStart;
+
+public function traversingComponentRefFinderHandleVarSubs ""
+  input DAE.Exp inExp;
+  input list<DAE.ComponentRef> inCrefs;
+  output DAE.Exp outExp;
+  output list<DAE.ComponentRef> crefs;
+algorithm
+  (outExp,crefs) := match (inExp)
+    local
+      ComponentRef cr;
+    case DAE.CREF()
+      algorithm
+        if Flags.isSet(Flags.PARMODAUTO) and ComponentReference.crefIsScalarWithVariableSubs(inExp.componentRef) then
+          Error.addInternalError(getInstanceName() + " - Cref has variable subs: " + ComponentReference.printComponentRefStr(inExp.componentRef),sourceInfo());
+          fail();
+        else
+          crefs := List.unionEltOnTrue(inExp.componentRef,inCrefs,ComponentReference.crefEqual);
+			  end if;
+      then (inExp,crefs);
+    else (inExp,inCrefs);
+  end match;
+end traversingComponentRefFinderHandleVarSubs;
+
 public function traverseExpBottomUp<T>
 "Traverses all subexpressions of an expression.
   Takes a function and an extra argument passed through the traversal.
@@ -5144,10 +5219,10 @@ algorithm
       (e, ext_arg) = inFunc(e, ext_arg);
     then (e, ext_arg);
 
-    case DAE.CALL(path=fn, expLst=expl, attr=attr) equation
-      (expl_1, ext_arg) = traverseExpList(expl, inFunc, inExtArg);
-      e = if referenceEq(expl, expl_1) then inExp else DAE.CALL(fn, expl_1, attr);
-      (e, ext_arg) = inFunc(e, ext_arg);
+    case DAE.CALL(path=fn, expLst=expl, attr=attr) algorithm
+      (expl_1, ext_arg) := traverseExpList(expl, inFunc, inExtArg);
+      e := if referenceEq(expl, expl_1) then inExp else DAE.CALL(fn, expl_1, attr);
+      (e, ext_arg) := inFunc(e, ext_arg);
     then (e, ext_arg);
 
     case DAE.RECORD(path=fn, exps=expl, comp=fieldNames, ty=tp) equation
@@ -6151,16 +6226,13 @@ algorithm
   ocrefs := List.unique(extractCrefsFromExp(inExp));
 end extractUniqueCrefsFromExp;
 
-public function extractCrefsFromExpDerPreStart
-" author mahge: Same as extractCrefsFromExp except:
-  This function will not treat der(), pre() and start() as calls
-  but as unique ids. i.e. x is different from der(x) and given der(x) x will not
-  be extreacted as a unique id. Instead you get $DER.x. Same oes for pre and start."
+public function extractCrefsFromExpHandleDerPreStart
+" TODO: mahge: "
   input DAE.Exp inExp;
   output list<DAE.ComponentRef> ocrefs;
 algorithm
-  (_,ocrefs) := traverseExpDerPreStart(inExp, traversingComponentRefFinder, {});
-end extractCrefsFromExpDerPreStart;
+  (_,ocrefs) := traverseExpBottomUpHandleDerPreStart(inExp, traversingComponentRefFinderHandleVarSubs, {});
+end extractCrefsFromExpHandleDerPreStart;
 
 public function extractUniqueCrefsFromExpDerPreStart
   "author mahge: Same as extractUniqueCrefsFromExp except:
@@ -6171,7 +6243,7 @@ public function extractUniqueCrefsFromExpDerPreStart
   output list<DAE.ComponentRef> ocrefs;
 algorithm
   // ocrefs := List.unique(List.flatten(List.map1(extractCrefsFromExp(inExp), ComponentReference.expandCref, true)));
-  ocrefs := List.unique(extractCrefsFromExpDerPreStart(inExp));
+  ocrefs := List.unique(extractCrefsFromExpHandleDerPreStart(inExp));
 end extractUniqueCrefsFromExpDerPreStart;
 
 
@@ -6191,6 +6263,174 @@ algorithm
   ocrefs := (olhscrefs,orhscrefs);
 end extractUniqueCrefsFromStatmentS;
 
+public function extractUniqueCrefsFromStatments2
+  "author mahge: Extracts all unique ComponentRef from Statments."
+  input list<DAE.Statement> inStmts;
+  output list<DAE.ComponentRef> olcrefs = {};
+  output list<DAE.ComponentRef> orcrefs = {};
+protected
+  list<list<DAE.ComponentRef>> lhscreflstlst;
+  list<list<DAE.ComponentRef>> rhscreflstlst;
+  list<DAE.ComponentRef> rhscrefs;
+  list<DAE.ComponentRef> lhscrefs;
+algorithm
+  for st in inStmts loop
+    (lhscrefs,rhscrefs) := extractCrefsStatment2(st);
+    olcrefs := listAppend(olcrefs,lhscrefs);
+    orcrefs := listAppend(orcrefs,rhscrefs);
+  end for;
+  olcrefs := List.unique(olcrefs);
+  orcrefs := List.unique(orcrefs);
+end extractUniqueCrefsFromStatments2;
+
+public function extractCrefsStatment2
+  "Extracts all ComponentRef from a Statment."
+  input DAE.Statement inStmt;
+  output list<DAE.ComponentRef> olcrefs = {};
+  output list<DAE.ComponentRef> orcrefs = {};
+algorithm
+  (olcrefs,orcrefs) := match(inStmt)
+    local
+      Exp exp1,exp2;
+      DAE.Statement stmt;
+      list<DAE.Exp> expLst;
+      list<DAE.Statement> stmtLst;
+      list<DAE.ComponentRef> lhscrefs,rhscrefs;
+
+    case DAE.STMT_ASSIGN()
+      algorithm
+        olcrefs := extractCrefsFromExpHandleDerPreStart(inStmt.exp1);
+        orcrefs := extractCrefsFromExpHandleDerPreStart(inStmt.exp);
+      then
+        (olcrefs,orcrefs);
+
+    case DAE.STMT_TUPLE_ASSIGN()
+      algorithm
+        olcrefs := List.flatten(List.map(inStmt.expExpLst, extractCrefsFromExpHandleDerPreStart));
+        orcrefs := extractCrefsFromExpHandleDerPreStart(inStmt.exp);
+      then
+        (olcrefs,orcrefs);
+
+    case DAE.STMT_ASSIGN_ARR()
+      algorithm
+        olcrefs := extractCrefsFromExpHandleDerPreStart(inStmt.lhs);
+        orcrefs := extractCrefsFromExpHandleDerPreStart(inStmt.exp);
+      then
+        (olcrefs,orcrefs);
+
+    /*TODO handle else part too*/
+    case DAE.STMT_IF()
+      algorithm
+        orcrefs := extractCrefsFromExpHandleDerPreStart(inStmt.exp);
+        for st in inStmt.statementLst loop
+			    (lhscrefs,rhscrefs) := extractCrefsStatment2(st);
+			    olcrefs := listAppend(olcrefs,lhscrefs);
+			    orcrefs := listAppend(orcrefs,rhscrefs);
+			  end for;
+
+        (lhscrefs,rhscrefs) := extractCrefsStatmentElse(inStmt.else_);
+        olcrefs := listAppend(olcrefs,lhscrefs);
+        orcrefs := listAppend(orcrefs,rhscrefs);
+      then
+        (olcrefs,orcrefs);
+
+
+    case DAE.STMT_FOR()
+      algorithm
+        orcrefs := extractCrefsFromExpHandleDerPreStart(inStmt.range);
+        for st in inStmt.statementLst loop
+          (lhscrefs,rhscrefs) := extractCrefsStatment2(st);
+          olcrefs := listAppend(olcrefs,lhscrefs);
+          orcrefs := listAppend(orcrefs,rhscrefs);
+        end for;
+      then
+        (olcrefs,orcrefs);
+
+    case DAE.STMT_WHEN()
+      algorithm
+        orcrefs := inStmt.conditions;
+        for st in inStmt.statementLst loop
+          (lhscrefs,rhscrefs) := extractCrefsStatment2(st);
+          olcrefs := listAppend(olcrefs,lhscrefs);
+          orcrefs := listAppend(orcrefs,rhscrefs);
+        end for;
+
+        if isSome(inStmt.elseWhen) then
+          SOME(stmt) := inStmt.elseWhen;
+          (lhscrefs,rhscrefs) := extractCrefsStatment2(stmt);
+          olcrefs := listAppend(olcrefs,lhscrefs);
+          orcrefs := listAppend(orcrefs,rhscrefs);
+        end if;
+
+      then
+        (olcrefs,orcrefs);
+
+    case DAE.STMT_NORETCALL()
+      algorithm
+        orcrefs := extractCrefsFromExpHandleDerPreStart(inStmt.exp);
+      then
+        (olcrefs,orcrefs);
+
+    /*
+    case DAE.STMT_WHILE(statementLst = stmtLst)
+      algorithm
+        (olcrefs,orcrefs) := extractUniqueCrefsFromStatmentS(stmtLst);
+      then
+        (olcrefs,orcrefs);
+    */
+
+    case DAE.STMT_ASSERT(cond = exp1)
+      algorithm
+        orcrefs := extractCrefsFromExpHandleDerPreStart(exp1);
+      then
+        ({},orcrefs);
+
+    else
+      algorithm
+        Error.addInternalError(getInstanceName() + " - Unknown statement " + DAEDump.ppStatementStr(inStmt),sourceInfo());
+      then
+        fail();
+
+  end match;
+end extractCrefsStatment2;
+
+public function extractCrefsStatmentElse
+  "Extracts all ComponentRef from a Statment."
+  input DAE.Else inElse;
+  output list<DAE.ComponentRef> olcrefs = {};
+  output list<DAE.ComponentRef> orcrefs = {};
+algorithm
+  (olcrefs,orcrefs) := match inElse
+    local
+      list<DAE.ComponentRef> lhscrefs,rhscrefs;
+
+    case DAE.NOELSE() then (olcrefs,orcrefs);
+
+    case DAE.ELSEIF()
+      algorithm
+        orcrefs := extractCrefsFromExpHandleDerPreStart(inElse.exp);
+        for st in inElse.statementLst loop
+          (lhscrefs,rhscrefs) := extractCrefsStatment2(st);
+          olcrefs := listAppend(olcrefs,lhscrefs);
+          orcrefs := listAppend(orcrefs,rhscrefs);
+        end for;
+        (lhscrefs,rhscrefs) := extractCrefsStatmentElse(inElse.else_);
+        olcrefs := listAppend(olcrefs,lhscrefs);
+        orcrefs := listAppend(orcrefs,rhscrefs);
+      then
+        (olcrefs,orcrefs);
+
+    case DAE.ELSE()
+      algorithm
+        for st in inElse.statementLst loop
+          (lhscrefs,rhscrefs) := extractCrefsStatment2(st);
+          olcrefs := listAppend(olcrefs,lhscrefs);
+          orcrefs := listAppend(orcrefs,rhscrefs);
+        end for;
+      then
+        (olcrefs,orcrefs);
+  end match;
+end extractCrefsStatmentElse;
 
 public function extractCrefsStatment
   "Extracts all ComponentRef from a Statment."
@@ -6206,22 +6446,22 @@ algorithm
 
     case DAE.STMT_ASSIGN(exp1 = exp1, exp = exp2)
       equation
-        olcrefs = extractCrefsFromExpDerPreStart(exp1);
-        orcrefs = extractCrefsFromExpDerPreStart(exp2);
+        olcrefs = extractCrefsFromExpHandleDerPreStart(exp1);
+        orcrefs = extractCrefsFromExpHandleDerPreStart(exp2);
       then
         (olcrefs,orcrefs);
 
     case DAE.STMT_TUPLE_ASSIGN(expExpLst = expLst, exp = exp2)
       equation
-        olcrefs = List.flatten(List.map(expLst, extractCrefsFromExpDerPreStart));
-        orcrefs = extractCrefsFromExpDerPreStart(exp2);
+        olcrefs = List.flatten(List.map(expLst, extractCrefsFromExpHandleDerPreStart));
+        orcrefs = extractCrefsFromExpHandleDerPreStart(exp2);
       then
         (olcrefs,orcrefs);
 
     case DAE.STMT_ASSIGN_ARR(lhs = exp1, exp = exp2)
       equation
-        olcrefs = extractCrefsFromExpDerPreStart(exp1);
-        orcrefs = extractCrefsFromExpDerPreStart(exp2);
+        olcrefs = extractCrefsFromExpHandleDerPreStart(exp1);
+        orcrefs = extractCrefsFromExpHandleDerPreStart(exp2);
       then
         (olcrefs,orcrefs);
 
@@ -6251,7 +6491,7 @@ algorithm
 
     case DAE.STMT_ASSERT(cond = exp1)
       equation
-        orcrefs = extractCrefsFromExpDerPreStart(exp1);
+        orcrefs = extractCrefsFromExpHandleDerPreStart(exp1);
       then
         ({},orcrefs);
 
@@ -6315,6 +6555,31 @@ algorithm
     else (inExp,true,false);
   end match;
 end traversingComponentRefPresent;
+
+
+function traversingComponentRefFinderDerPreStart2 "
+Author: BZ 2008-06
+Exp traverser that Union the current ComponentRef with list if it is already there.
+Returns a list containing, unique, all componentRef in an Expression."
+  input DAE.Exp inExp;
+  input list<DAE.ComponentRef> inCrefs;
+  output DAE.Exp outExp;
+  output list<DAE.ComponentRef> crefs;
+algorithm
+  (outExp,crefs) := match (inExp,inCrefs)
+    local
+      ComponentRef cr;
+    case (DAE.CREF(componentRef=cr), crefs)
+      equation
+        crefs = cr::crefs;
+      then (inExp, crefs);
+    case (DAE.CALL(path = Absyn.IDENT(name = "der")), _) then (inExp, inCrefs);
+    case (DAE.CALL(path = Absyn.IDENT(name = "$_start")), _) then (inExp, inCrefs);
+    case (DAE.CALL(path = Absyn.IDENT(name = "pre")), _) then (inExp, inCrefs);
+    case (DAE.CALL(path = Absyn.IDENT(name = "previous")), _) then (inExp, inCrefs);
+    else (inExp,inCrefs);
+  end match;
+end traversingComponentRefFinderDerPreStart2;
 
 public function traversingComponentRefFinder "
 Author: BZ 2008-06

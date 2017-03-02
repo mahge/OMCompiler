@@ -2065,25 +2065,28 @@ end crefPrefixDer;
 public function crefPrefixPre "public function crefPrefixPre
   Appends $PRE to a cref, so a => $PRE.a"
   input DAE.ComponentRef inCref;
+  input DAE.Type ty = DAE.T_UNKNOWN_DEFAULT;
   output DAE.ComponentRef outCref;
 algorithm
-  outCref := makeCrefQual(DAE.preNamePrefix, DAE.T_UNKNOWN_DEFAULT, {}, inCref);
+  outCref := makeCrefQual(DAE.preNamePrefix, ty, {}, inCref);
 end crefPrefixPre;
 
 public function crefPrefixPrevious "public function crefPrefixPrevious
   Appends $CLKPRE to a cref, so a => $CLKPRE.a"
   input DAE.ComponentRef inCref;
+  input DAE.Type ty = DAE.T_UNKNOWN_DEFAULT;
   output DAE.ComponentRef outCref;
 algorithm
-  outCref := makeCrefQual(DAE.previousNamePrefix, DAE.T_UNKNOWN_DEFAULT, {}, inCref);
+  outCref := makeCrefQual(DAE.previousNamePrefix, ty, {}, inCref);
 end crefPrefixPrevious;
 
 public function crefPrefixStart "public function crefPrefixStart
   Appends $START to a cref, so a => $START.a"
   input DAE.ComponentRef inCref;
+  input DAE.Type ty = DAE.T_UNKNOWN_DEFAULT;
   output DAE.ComponentRef outCref;
 algorithm
-  outCref := makeCrefQual(DAE.startNamePrefix, DAE.T_UNKNOWN_DEFAULT, {}, inCref);
+  outCref := makeCrefQual(DAE.startNamePrefix, ty, {}, inCref);
 end crefPrefixStart;
 
 public function crefPrefixString

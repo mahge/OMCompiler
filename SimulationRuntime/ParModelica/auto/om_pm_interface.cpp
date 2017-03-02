@@ -56,10 +56,10 @@ void PM_functionInitialEquations(int size, DATA* data, threadData_t* threadData,
 
     // pm_om_model.ini_system_funcs = functionInitialEquations_systems;
     // pm_om_model.INI_scheduler.execute();
-  pm_om_model.INI_scheduler.execution_timer.start_timer();
+    pm_om_model.INI_scheduler.execution_timer.start_timer();
     for(int i = 0; i < size; ++i)
         functionInitialEquations_systems[i](data, threadData);
-  pm_om_model.INI_scheduler.execution_timer.stop_timer();
+    pm_om_model.INI_scheduler.execution_timer.stop_timer();
 
 }
 
@@ -69,27 +69,28 @@ void PM_functionDAE(int size, DATA* data, threadData_t* threadData, FunctionType
     // pm_om_model.dae_system_funcs = functionDAE_systems;
     // pm_om_model.DAE_scheduler.execute();
 
-  pm_om_model.DAE_scheduler.execution_timer.start_timer();
+    pm_om_model.DAE_scheduler.execution_timer.start_timer();
     for(int i = 0; i < size; ++i)
         functionDAE_systems[i](data, threadData);
-  pm_om_model.DAE_scheduler.execution_timer.stop_timer();
+    pm_om_model.DAE_scheduler.execution_timer.stop_timer();
 
 }
 
 
 void PM_functionODE(int size, DATA* data, threadData_t* threadData, FunctionType* functionODE_systems) {
 
+    // pm_om_model.total_alg_time.start_timer();
     pm_om_model.ODE_scheduler.execute();
 
-  // pm_om_model.ODE_scheduler.execution_timer.start_timer();
+    // pm_om_model.ODE_scheduler.execution_timer.start_timer();
     // for(int i = 0; i < size; ++i)
         // functionODE_systems[i](data, threadData);
-  // pm_om_model.ODE_scheduler.execution_timer.stop_timer();
+    // pm_om_model.ODE_scheduler.execution_timer.stop_timer();
+    // pm_om_model.total_alg_time.stop_timer();
 
-
-  // double step_cost = pm_om_model.ODE_scheduler.execution_timer.get_elapsed_time();
-  // std::cout << step_cost << std::endl;
-  // pm_om_model.ODE_scheduler.execution_timer.reset_timer();
+    // double step_cost = pm_om_model.total_alg_time.get_elapsed_time();
+    // pm_om_model.total_alg_time.reset_timer();
+    // std::cout << step_cost << std::endl;
 }
 
 void PM_functionAlg(int size, DATA* data, threadData_t* threadData, FunctionType* functionAlg_systems) {

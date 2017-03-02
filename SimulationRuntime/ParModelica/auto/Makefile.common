@@ -24,7 +24,7 @@ libParModelicaAuto.a: $(OBJS)
 	$(AR_) $@ $(OBJS)
     
 .cpp.o: $(DPFILE)
-	$(CC) $(CPPFLAGS) $(INCDIRS) -c $<    
+	$(CXX) $(CPPFLAGS) $(INCDIRS) -c $<
     
 test: test_task_graph.cpp libParModelicaAuto.a
 	$(CXX) $(CPPFLAGS) -I. $(INCDIRS) test_task_graph.cpp -o gen_graph$(EXEEXT) libParModelicaAuto.a -L$(TBB_LIB) -ltbb
@@ -34,6 +34,6 @@ clean :
 	touch $(DPFILE)
     
 $(DPFILE) depend : $(HDRS) $(SRCS)
-	$(CC) $(DPFLAGS) $(CPPFLAGS) $(SRCS) > $(DPFILE)    
+	$(CXX) $(DPFLAGS) $(CPPFLAGS) $(SRCS) > $(DPFILE)
     
 include $(DPFILE)
