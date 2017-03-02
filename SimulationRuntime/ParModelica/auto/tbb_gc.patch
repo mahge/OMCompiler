@@ -1,0 +1,262 @@
+diff --git a/build/windows.gcc.inc b/build/windows.gcc.inc
+index 19820e1..b2b9267 100644
+--- a/build/windows.gcc.inc
++++ b/build/windows.gcc.inc
+@@ -63,7 +63,7 @@ TEST_WARNING_KEY = -Wextra -Wshadow -Wcast-qual -Woverloaded-virtual -Wnon-virtu
+ WARNING_SUPPRESS = -Wno-parentheses -Wno-uninitialized -Wno-non-virtual-dtor
+ DYLIB_KEY = -shared
+ LIBDL =
+-EXPORT_KEY = -Wl,--version-script,
++EXPORT_KEY = -L"D:/OpenModelica/build/lib/omc" -lomcgc -Wl,--version-script,
+ LIBS = -lpsapi
+
+ #------------------------------------------------------------------------------
+@@ -87,7 +87,7 @@ ifeq ($(cfg), debug)
+         CPLUS_FLAGS = -g -O0 -DTBB_USE_DEBUG
+ endif
+
+-CPLUS_FLAGS += -DUSE_WINTHREAD
++CPLUS_FLAGS += -DUSE_WINTHREAD -I"D:/OpenModelica/OMCompiler/3rdParty/gc/include"
+ CPLUS_FLAGS += -D_WIN32_WINNT=$(_WIN32_WINNT)
+
+ # MinGW specific
+diff --git a/include/tbb/compat/condition_variable b/include/tbb/compat/condition_variable
+index 3964fa8..66d6ea6 100644
+--- a/include/tbb/compat/condition_variable
++++ b/include/tbb/compat/condition_variable
+@@ -22,6 +22,8 @@
+ #define __TBB_condition_variable_H
+
+ #if _WIN32||_WIN64
++#define GC_THREADS
++#include <gc_cpp.h>
+ #include "../machine/windows_api.h"
+
+ namespace tbb {
+@@ -49,6 +51,8 @@ typedef CONDITION_VARIABLE* PCONDITION_VARIABLE;
+
+ #else /* if not _WIN32||_WIN64 */
+ #include <errno.h> // some systems need it for ETIMEDOUT
++#define GC_THREADS
++#include <gc_cpp.h>
+ #include <pthread.h>
+ #if __linux__
+ #include <ctime>
+diff --git a/include/tbb/critical_section.h b/include/tbb/critical_section.h
+index 010248b..a0e5075 100644
+--- a/include/tbb/critical_section.h
++++ b/include/tbb/critical_section.h
+@@ -22,8 +22,12 @@
+ #define _TBB_CRITICAL_SECTION_H_
+
+ #if _WIN32||_WIN64
++#define GC_THREADS
++#include <gc_cpp.h>
+ #include "machine/windows_api.h"
+ #else
++#define GC_THREADS
++#include <gc_cpp.h>
+ #include <pthread.h>
+ #include <errno.h>
+ #endif  // _WIN32||WIN64
+diff --git a/include/tbb/enumerable_thread_specific.h b/include/tbb/enumerable_thread_specific.h
+index 086ac4b..9db6950 100644
+--- a/include/tbb/enumerable_thread_specific.h
++++ b/include/tbb/enumerable_thread_specific.h
+@@ -33,8 +33,12 @@
+ #include <string.h>  // for memcpy
+
+ #if _WIN32||_WIN64
++#define GC_THREADS
++#include <gc_cpp.h>
+ #include "machine/windows_api.h"
+ #else
++#define GC_THREADS
++#include <gc_cpp.h>
+ #include <pthread.h>
+ #endif
+
+diff --git a/include/tbb/mutex.h b/include/tbb/mutex.h
+index b67c0b1..b821729 100644
+--- a/include/tbb/mutex.h
++++ b/include/tbb/mutex.h
+@@ -22,8 +22,12 @@
+ #define __TBB_mutex_H
+
+ #if _WIN32||_WIN64
++#define GC_THREADS
++#include <gc_cpp.h>
+ #include "machine/windows_api.h"
+ #else
++#define GC_THREADS
++#include <gc_cpp.h>
+ #include <pthread.h>
+ #endif /* _WIN32||_WIN64 */
+
+diff --git a/include/tbb/recursive_mutex.h b/include/tbb/recursive_mutex.h
+index 6d16796..29d401b 100644
+--- a/include/tbb/recursive_mutex.h
++++ b/include/tbb/recursive_mutex.h
+@@ -22,8 +22,12 @@
+ #define __TBB_recursive_mutex_H
+
+ #if _WIN32||_WIN64
++#define GC_THREADS
++#include <gc_cpp.h>
+ #include "machine/windows_api.h"
+ #else
++#define GC_THREADS
++#include <gc_cpp.h>
+ #include <pthread.h>
+ #endif /* _WIN32||_WIN64 */
+
+diff --git a/include/tbb/tbb_thread.h b/include/tbb/tbb_thread.h
+index 62b16d4..7576f05 100644
+--- a/include/tbb/tbb_thread.h
++++ b/include/tbb/tbb_thread.h
+@@ -24,6 +24,8 @@
+ #include "tbb_stddef.h"
+
+ #if _WIN32||_WIN64
++#define GC_THREADS
++#include <gc_cpp.h>
+ #include "machine/windows_api.h"
+ #define __TBB_NATIVE_THREAD_ROUTINE unsigned WINAPI
+ #define __TBB_NATIVE_THREAD_ROUTINE_PTR(r) unsigned (WINAPI* r)( void* )
+@@ -37,6 +39,8 @@ namespace tbb { namespace internal {
+ #else
+ #define __TBB_NATIVE_THREAD_ROUTINE void*
+ #define __TBB_NATIVE_THREAD_ROUTINE_PTR(r) void* (*r)( void* )
++#define GC_THREADS
++#include <gc_cpp.h>
+ #include <pthread.h>
+ namespace tbb { namespace internal {
+     typedef pthread_t thread_id_type;
+diff --git a/src/rml/server/thread_monitor.h b/src/rml/server/thread_monitor.h
+index 24dd869..af2857e 100644
+--- a/src/rml/server/thread_monitor.h
++++ b/src/rml/server/thread_monitor.h
+@@ -24,6 +24,8 @@
+ #define __RML_thread_monitor_H
+
+ #if USE_WINTHREAD
++#define GC_THREADS
++#include <gc_cpp.h>
+ #include <windows.h>
+ #include <process.h>
+ #include <malloc.h> //_alloca
+@@ -32,6 +34,8 @@
+ #include <thread>
+ #endif
+ #elif USE_PTHREAD
++#define GC_THREADS
++#include <gc_cpp.h>
+ #include <pthread.h>
+ #include <string.h>
+ #include <stdlib.h>
+diff --git a/src/tbb/dynamic_link.cpp b/src/tbb/dynamic_link.cpp
+index 1482320..0a4af6c 100644
+--- a/src/tbb/dynamic_link.cpp
++++ b/src/tbb/dynamic_link.cpp
+@@ -60,6 +60,8 @@
+ #define __USE_STATIC_DL_INIT    ( !__ANDROID__ )
+
+ #if !__USE_TBB_ATOMICS
++#define GC_THREADS
++#include <gc_cpp.h>
+ #include <pthread.h>
+ #endif
+
+diff --git a/src/tbb/tls.h b/src/tbb/tls.h
+index 59bc259..336f409 100644
+--- a/src/tbb/tls.h
++++ b/src/tbb/tls.h
+@@ -22,8 +22,12 @@
+ #define _TBB_tls_H
+
+ #if USE_PTHREAD
++#define GC_THREADS
++#include <gc_cpp.h>
+ #include <pthread.h>
+ #else /* assume USE_WINTHREAD */
++#define GC_THREADS
++#include <gc_cpp.h>
+ #include "tbb/machine/windows_api.h"
+ #endif
+
+diff --git a/src/tbb/tools_api/ittnotify_config.h b/src/tbb/tools_api/ittnotify_config.h
+index 4722217..c9f2dc4 100644
+--- a/src/tbb/tools_api/ittnotify_config.h
++++ b/src/tbb/tools_api/ittnotify_config.h
+@@ -207,6 +207,8 @@
+
+ /* OS communication functions */
+ #if ITT_PLATFORM==ITT_PLATFORM_WIN
++#define GC_THREADS
++#include <gc_cpp.h>
+ #include <windows.h>
+ typedef HMODULE           lib_t;
+ typedef DWORD             TIDT;
+@@ -224,6 +226,8 @@ typedef CRITICAL_SECTION  mutex_t;
+ #ifndef __USE_UNIX98
+ #define __USE_UNIX98 1 /* need for PTHREAD_MUTEX_RECURSIVE, on SLES11.1 with gcc 4.3.4 wherein pthread.h missing dependency on __USE_XOPEN2K8 */
+ #endif /*__USE_UNIX98*/
++#define GC_THREADS
++#include <gc_cpp.h>
+ #include <pthread.h>
+ typedef void*             lib_t;
+ typedef pthread_t         TIDT;
+diff --git a/src/tbbmalloc/tbbmalloc_internal.h b/src/tbbmalloc/tbbmalloc_internal.h
+index bbd9888..91bd898 100644
+--- a/src/tbbmalloc/tbbmalloc_internal.h
++++ b/src/tbbmalloc/tbbmalloc_internal.h
+@@ -25,10 +25,14 @@
+ #include "TypeDefinitions.h" /* Also includes customization layer Customize.h */
+
+ #if USE_PTHREAD
++    #define GC_THREADS
++    #include <gc_cpp.h>
+     // Some pthreads documentation says that <pthreads.h> must be first header.
+     #include <pthread.h>
+     typedef pthread_key_t tls_key_t;
+ #elif USE_WINTHREAD
++    #define GC_THREADS
++    #include <gc_cpp.h>
+     #include "tbb/machine/windows_api.h"
+     typedef DWORD tls_key_t;
+ #else
+diff --git a/src/test/harness.h b/src/test/harness.h
+index e396294..2dfadfa 100644
+--- a/src/test/harness.h
++++ b/src/test/harness.h
+@@ -81,6 +81,8 @@ int TestMain ();
+ #endif /* !__MIC__ */
+
+ #if _WIN32||_WIN64
++    #define GC_THREADS
++    #include <gc_cpp.h>
+     #include "tbb/machine/windows_api.h"
+     #if _WIN32_WINNT > 0x0501 && _MSC_VER && !_M_ARM
+         // Suppress "typedef ignored ... when no variable is declared" warning by vc14
+@@ -98,6 +100,8 @@ int TestMain ();
+     #endif
+     #include <process.h>
+ #else
++    #define GC_THREADS
++    #include <gc_cpp.h>
+     #include <pthread.h>
+ #endif
+
+diff --git a/src/test/harness_tbb_independence.h b/src/test/harness_tbb_independence.h
+index f799811..a43834d 100644
+--- a/src/test/harness_tbb_independence.h
++++ b/src/test/harness_tbb_independence.h
+@@ -34,6 +34,8 @@
+ #define __TBB_NO_IMPLICIT_LINKAGE 1
+ #include "tbb/tbb_machine.h"
+
++#define GC_THREADS
++#include <gc_cpp.h>
+ #include <pthread.h>
+
+ // Can't use Intel compiler intrinsic due to internal error reported by 10.1 compiler

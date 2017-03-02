@@ -125,6 +125,7 @@ public:
     TaskSystemT ALG_system;
 
     void load_from_xml(TaskSystemT&, const std::string&, FunctionType*);
+    void load_from_json(TaskSystemT&, const std::string&, FunctionType*);
 };
 
 
