@@ -268,7 +268,7 @@ uniontype Function
         algorithm
           for p in cdef.pathLst loop
             cr := Absyn.pathToCref(p);
-            (_,sub_fnNode) := instFunc(cr,fnNode /*This should be the scope right?*/,info);
+            (_,sub_fnNode) := instFunc(cr,fnNode,info);
             for f in getCachedFuncs(sub_fnNode) loop
               fnNode := InstNode.cacheAddFunc(f, fnNode);
             end for;
@@ -373,7 +373,7 @@ uniontype Function
     "Constructs a string representing a call, for use in error messages."
     input Function fn;
     input list<Expression> posArgs;
-    input list<tuple<String, Expression>> namedArgs;
+    input list<NamedArg> namedArgs;
     output String str;
   algorithm
     str := stringDelimitList(list(Expression.toString(arg) for arg in posArgs), ", ");
@@ -408,7 +408,7 @@ uniontype Function
     input list<TypedArg> posArgs;
     input list<TypedNamedArg> namedArgs;
     input Function fn;
-    input Option<SourceInfo> info;
+    input SourceInfo info;
     output list<TypedArg> args = posArgs;
     output Boolean matching;
   protected
@@ -454,7 +454,7 @@ uniontype Function
     input list<TypedNamedArg> namedArgs;
     input list<Slot> slots;
     input Function fn;
-    input Option<SourceInfo> info;
+    input SourceInfo info;
     output list<TypedArg> args = {};
     output Boolean matching = true;
   protected
@@ -479,7 +479,7 @@ uniontype Function
     input TypedNamedArg inArg;
     input output array<Slot> slots;
     input Function fn "For error reporting";
-    input Option<SourceInfo> info;
+    input SourceInfo info;
           output Boolean matching = true;
   protected
     Slot s;
@@ -504,7 +504,7 @@ uniontype Function
         else
           // TODO: Improve the error message, should mention function name.
           Error.addSourceMessage(Error.FUNCTION_SLOT_ALREADY_FILLED,
-            {argName, ""}, Util.getOption(info));
+            {argName, ""}, info);
           matching := false;
         end if;
 
@@ -515,30 +515,27 @@ uniontype Function
     // No slot could be found.
     matching := false;
 
-    // Only print error if info is given.
-    if isSome(info) then
-      // A slot with the given name couldn't be found. This means it doesn't
-      // exist, or we removed it when handling positional argument. We need to
-      // search through all slots to be sure.
-      for s in fn.slots loop
-        if argName == s.name then
-          // We found a slot, so it must have already been filled.
-          Error.addSourceMessage(Error.FUNCTION_SLOT_ALREADY_FILLED,
-            {argName, ""}, Util.getOption(info));
-          return;
-        end if;
-      end for;
+    // A slot with the given name couldn't be found. This means it doesn't
+    // exist, or we removed it when handling positional argument. We need to
+    // search through all slots to be sure.
+    for s in fn.slots loop
+      if argName == s.name then
+        // We found a slot, so it must have already been filled.
+        Error.addSourceMessage(Error.FUNCTION_SLOT_ALREADY_FILLED,
+          {argName, ""}, info);
+        return;
+      end if;
+    end for;
 
-      // No slot could be found, so it doesn't exist.
-      Error.addSourceMessage(Error.NO_SUCH_PARAMETER,
-        {InstNode.name(instance(fn)), argName}, Util.getOption(info));
-    end if;
+    // No slot could be found, so it doesn't exist.
+    Error.addSourceMessage(Error.NO_SUCH_PARAMETER,
+      {InstNode.name(instance(fn)), argName}, info);
   end fillNamedArg;
 
   function collectArgsNew
     "Collects the arguments from the given slots."
     input array<Slot> slots;
-    input Option<SourceInfo> info;
+    input SourceInfo info;
     output list<TypedArg> args = {};
     output Boolean matching = true;
   protected
@@ -557,10 +554,7 @@ uniontype Function
         case (SOME(e), _) then (e,Expression.typeOf(e),DAE.C_CONST()) ::args; // Otherwise, check that a default value exists.
         else // Give an error if no argument was given and there's no default value.
           algorithm
-            if isSome(info) then
-              Error.addSourceMessage(Error.UNFILLED_SLOT, {name}, Util.getOption(info));
-            end if;
-
+            Error.addSourceMessage(Error.UNFILLED_SLOT, {name}, info);
             matching := false;
           then
             args;
@@ -573,7 +567,7 @@ uniontype Function
   function matchArgs
     input Function func;
     input output list<TypedArg> args;
-    input Option<SourceInfo> info;
+    input SourceInfo info;
           output Boolean correct;
           output FunctionMatchKind funcMatchKind = EXACT_MATCH;
   protected
@@ -605,13 +599,10 @@ uniontype Function
 
       // Type mismatch, print an error.
       if not correct then
-        if isSome(info) then
-          Error.addSourceMessage(Error.ARG_TYPE_MISMATCH, {
-            intString(idx), Absyn.pathString(func.path), InstNode.name(inputnode), Expression.toString(argexp),
-            Type.toString(ty), Type.toString(Component.getType(comp))
-          }, Util.getOption(info));
-        end if;
-
+        Error.addSourceMessage(Error.ARG_TYPE_MISMATCH, {
+          intString(idx), Absyn.pathString(func.path), InstNode.name(inputnode), Expression.toString(argexp),
+          Type.toString(ty), Type.toString(Component.getType(comp))
+        }, info);
         return;
       end if;
 
@@ -619,12 +610,10 @@ uniontype Function
 
       // Variability mismatch, print an error.
       if not correct then
-        if isSome(info) then
-          Error.addSourceMessage(Error.FUNCTION_SLOT_VARIABILITY, {
-            InstNode.name(inputnode), Expression.toString(argexp), DAEDump.dumpKindStr(Component.variability(comp))
-          }, Util.getOption(info));
-          return;
-        end if;
+        Error.addSourceMessage(Error.FUNCTION_SLOT_VARIABILITY, {
+          InstNode.name(inputnode), Expression.toString(argexp), DAEDump.dumpKindStr(Component.variability(comp))
+        }, info);
+        return;
       end if;
 
       checked_args := (margexp,mty,var) :: checked_args;
@@ -839,21 +828,6 @@ protected
       name := InstNode.name(component);
       hasDefault := isSome(default);
 
-      // function F
-      //   input Real a = 1;
-      //   input Real b;
-      // end F;
-      // F(b=2);  is a valid call
-      /*
-      // All parameters with default arguments should be declared last in a
-      // function, otherwise it's useless to have default arguments. Modelica
-      // does not seem to strictly forbid this, so we just give a warning.
-      if defaultRequired and not hasDefault then
-        Error.addSourceMessage(Error.MISSING_DEFAULT_ARG,
-          {name}, InstNode.info(component));
-      end if;
-      */
-
       // Remove $in_ for OM input output arguments.
       if stringGet(name, 1) == 36 /*$*/ then
         if stringLength(name) > 4 and substring(name, 1, 4) == "$in_" then
@@ -1010,6 +984,7 @@ protected
       case Type.CLOCK() then true;
       case Type.ENUMERATION() then true;
       case Type.ENUMERATION_ANY() then true;
+      case Type.ANY_TYPE() then true;
       case Type.ARRAY() then isValidParamType(ty.elementType);
       case Type.COMPLEX() then isValidParamState(ty.cls);
     end match;

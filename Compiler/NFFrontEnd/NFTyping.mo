@@ -104,6 +104,7 @@ algorithm
       then
         Type.COMPLEX(cls);
 
+    case Class.INSTANCED_BUILTIN(ty = ANY_TYPE("unknown")) then ANY_TYPE(InstNode.name(cls));
     case Class.INSTANCED_BUILTIN() then c.ty;
 
     else
@@ -371,6 +372,7 @@ algorithm
     case Type.BOOLEAN() then checkBoolAttributes(attributes);
     case Type.STRING() then checkStringAttributes(attributes);
     case Type.ENUMERATION() then checkEnumAttributes(attributes);
+    case Type.ANY_TYPE() then assert(true,"");
     else
       algorithm
         assert(false, getInstanceName() + " got unknown type");

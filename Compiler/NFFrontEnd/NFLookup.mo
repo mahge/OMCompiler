@@ -421,6 +421,7 @@ algorithm
     case "Integer" then NFBuiltin.INT_TYPE;
     case "Boolean" then NFBuiltin.BOOLEAN_TYPE;
     case "String" then NFBuiltin.STRING_TYPE;
+    case "polymorphic" then NFBuiltin.ANY_TYPE;
   end match;
 end lookupSimpleBuiltinName;
 

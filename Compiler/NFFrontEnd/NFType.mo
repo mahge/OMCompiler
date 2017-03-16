@@ -39,6 +39,10 @@ public
   import NFInstNode.InstNode;
   import Subscript = NFSubscript;
 
+  record ANY_TYPE
+    String b;
+  end ANY_TYPE;
+
   record INTEGER
   end INTEGER;
 
@@ -86,6 +90,10 @@ public
     Type resultType;
     DAE.FunctionAttributes attributes;
   end FUNCTION;
+
+  record T_METABOXED "Used for MetaModelica generic types"
+    Type ty;
+  end T_METABOXED;
 
   // TODO: Fix constants in uniontypes and use these wherever applicable to
   // speed up comparisons using referenceEq.
@@ -373,6 +381,7 @@ public
       case Type.ENUMERATION() then "enumeration()";
       case Type.ENUMERATION_ANY() then "enumeration(:)";
       case Type.CLOCK() then "Clock";
+      case Type.ANY_TYPE() then "Any";
       case Type.ARRAY() then toString(ty.elementType) + "[" + stringDelimitList(List.map(ty.dimensions, Dimension.toString), ", ") + "]";
       case Type.TUPLE() then "tuple(" + stringDelimitList(List.map(ty.types, toString), ", ") + ")";
       case Type.FUNCTION() then "function( output " + toString(ty.resultType) + " )";
@@ -408,6 +417,7 @@ public
       case Type.NORETCALL() then DAE.T_NORETCALL_DEFAULT;
       case Type.UNKNOWN() then DAE.T_UNKNOWN_DEFAULT;
       case Type.COMPLEX() then DAE.T_COMPLEX_DEFAULT;
+      case Type.ANY_TYPE() then DAE.T_METAPOLYMORPHIC(ty.b);
       else
         algorithm
           assert(false, getInstanceName() + " got unknown type: " + anyString(ty));

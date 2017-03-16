@@ -38,6 +38,8 @@ import Expression = NFExpression;
 import Type = NFType;
 
 protected
+import Binding = NFBinding;
+import NFComponent.Component;
 import NFInstNode.CachedData;
 import ComponentRef = NFComponentRef;
 import NFFunction.Function;
@@ -108,12 +110,51 @@ uniontype Call
     CallAttributes attributes;
   end TYPED_CALL;
 
+  record UNTYPED_MAP_CALL
+    ComponentRef ref;
+    Expression exp;
+    list<InstNode> iters;
+  end UNTYPED_MAP_CALL;
+
+  record TYPED_MAP_CALL
+    Function fn;
+    Type ty;
+    Expression exp;
+    list<InstNode> iters;
+  end TYPED_MAP_CALL;
+
+
   function instantiate
     input Absyn.ComponentRef functionName;
     input Absyn.FunctionArgs functionArgs;
     input InstNode scope;
     input SourceInfo info;
     output Expression callExp;
+  protected
+    Call call;
+  algorithm
+
+    call := match functionArgs
+      case Absyn.FUNCTIONARGS() then instNormalCall(functionName, functionArgs, scope, info);
+      case Absyn.FOR_ITER_FARG() then instIteratorCall(functionName, functionArgs, scope, info);
+      else
+        algorithm
+          assert(false, getInstanceName() + " got unknown call type");
+        then
+          fail();
+    end match;
+
+    callExp := Expression.CALL(call);
+
+  end instantiate;
+
+  protected
+  function instNormalCall
+    input Absyn.ComponentRef functionName;
+    input Absyn.FunctionArgs functionArgs;
+    input InstNode scope;
+    input SourceInfo info;
+    output Call call;
   protected
     InstNode fn_node;
     ComponentRef fn_ref;
@@ -122,8 +163,8 @@ uniontype Call
   algorithm
     (fn_ref, fn_node) := Function.instFunc(functionName,scope,info);
     (args, named_args) := instArgs(functionArgs, scope, info);
-    callExp := Expression.CALL(UNTYPED_CALL(fn_ref, {}, args, named_args));
-  end instantiate;
+    call := UNTYPED_CALL(fn_ref, {}, args, named_args);
+  end instNormalCall;
 
   function instArgs
     input Absyn.FunctionArgs args;
@@ -161,13 +202,238 @@ uniontype Call
     arg := (name, Inst.instExp(exp, scope, info));
   end instNamedArg;
 
+  function instIteratorCall
+    input Absyn.ComponentRef functionName;
+    input Absyn.FunctionArgs functionArgs;
+    input InstNode scope;
+    input SourceInfo info;
+    output Call call;
+  protected
+    InstNode fn_node;
+    ComponentRef fn_ref;
+    Expression exp;
+    list<InstNode> iters;
+    ComponentRef arr_fn_ref;
+    Call arr_call;
+  algorithm
+    (fn_ref, fn_node) := Function.instFunc(functionName,scope,info);
+    (exp, iters) := instIteratorCallArgs(functionArgs, scope, info);
+    call := match functionName
+
+      case Absyn.CREF_IDENT("min",_) algorithm
+        (arr_fn_ref, _) := Function.instFunc(Absyn.CREF_IDENT("array", {}),scope,info);
+        arr_call := UNTYPED_MAP_CALL(arr_fn_ref, exp, iters);
+      then UNTYPED_CALL(fn_ref, {}, {Expression.CALL(arr_call)}, {});
+
+      case Absyn.CREF_IDENT("max",_) algorithm
+        (arr_fn_ref, _) := Function.instFunc(Absyn.CREF_IDENT("array", {}),scope,info);
+        arr_call := UNTYPED_MAP_CALL(arr_fn_ref, exp, iters);
+      then UNTYPED_CALL(fn_ref, {}, {Expression.CALL(arr_call)}, {});
+
+      case Absyn.CREF_IDENT("sum",_) algorithm
+        (arr_fn_ref, _) := Function.instFunc(Absyn.CREF_IDENT("array", {}),scope,info);
+        arr_call := UNTYPED_MAP_CALL(arr_fn_ref, exp, iters);
+      then UNTYPED_CALL(fn_ref, {}, {Expression.CALL(arr_call)}, {});
+
+      case Absyn.CREF_IDENT("product",_) algorithm
+        (arr_fn_ref, _) := Function.instFunc(Absyn.CREF_IDENT("array", {}),scope,info);
+        arr_call := UNTYPED_MAP_CALL(arr_fn_ref, exp, iters);
+      then UNTYPED_CALL(fn_ref, {}, {Expression.CALL(arr_call)}, {});
+
+      else algorithm
+        then UNTYPED_MAP_CALL(fn_ref, exp, iters);
+    end match;
+
+  end instIteratorCall;
+
+  function createIteratorCall
+    input ComponentRef fn_ref;
+    input Expression exp;
+    input list<InstNode> iters;
+    input InstNode scope;
+    input SourceInfo info;
+    output Call call;
+  protected
+    String name;
+    // InstNode arr_fn_node;
+    ComponentRef arr_fn_ref;
+    Call arr_call;
+  algorithm
+    name := ComponentRef.toString(fn_ref);
+    call := match name
+
+      case "min" algorithm
+        (arr_fn_ref, _) := Function.instFunc(Absyn.CREF_IDENT("array", {}),scope,info);
+        arr_call := UNTYPED_MAP_CALL(arr_fn_ref, exp, iters);
+      then UNTYPED_CALL(fn_ref, {}, {Expression.CALL(arr_call)}, {});
+
+      case "max" algorithm
+        (arr_fn_ref, _) := Function.instFunc(Absyn.CREF_IDENT("array", {}),scope,info);
+        arr_call := UNTYPED_MAP_CALL(arr_fn_ref, exp, iters);
+      then UNTYPED_CALL(fn_ref, {}, {Expression.CALL(arr_call)}, {});
+
+      case "sum" algorithm
+        (arr_fn_ref, _) := Function.instFunc(Absyn.CREF_IDENT("array", {}),scope,info);
+        arr_call := UNTYPED_MAP_CALL(arr_fn_ref, exp, iters);
+      then UNTYPED_CALL(fn_ref, {}, {Expression.CALL(arr_call)}, {});
+
+      case "product" algorithm
+        (arr_fn_ref, _) := Function.instFunc(Absyn.CREF_IDENT("array", {}),scope,info);
+        arr_call := UNTYPED_MAP_CALL(arr_fn_ref, exp, iters);
+      then UNTYPED_CALL(fn_ref, {}, {Expression.CALL(arr_call)}, {});
+
+      else algorithm
+        then UNTYPED_MAP_CALL(fn_ref, exp, iters);
+    end match;
+  end createIteratorCall;
+
+  function instIteratorCallArgs
+    input Absyn.FunctionArgs args;
+    input InstNode scope;
+    input SourceInfo info;
+    output Expression exp;
+    output list<InstNode> iters;
+  algorithm
+    _ := match args
+      local
+        InstNode for_scope;
+
+      case Absyn.FOR_ITER_FARG()
+        algorithm
+          (for_scope, iters) := instIterators(args.iterators, scope, info);
+          exp := Inst.instExp(args.exp, for_scope, info);
+        then
+          ();
+    end match;
+  end instIteratorCallArgs;
+
+  function instIterators
+    input list<Absyn.ForIterator> inIters;
+    input InstNode scope;
+    input SourceInfo info;
+    output InstNode iter_scope;
+    output list<InstNode> outIters;
+  protected
+    Binding binding;
+    InstNode iter;
+  algorithm
+    outIters := {};
+    iter_scope := scope;
+    for Absiter in inIters loop
+      binding := Binding.fromAbsyn(Absiter.range, SCode.NOT_EACH(), 0, iter_scope, info);
+      binding := Inst.instBinding(binding, allowTypename = true);
+      (iter_scope, iter) := Inst.addIteratorToScope(Absiter.name, binding, info, iter_scope);
+      outIters := iter::outIters;
+    end for;
+
+    outIters := listReverse(outIters);
+  end instIterators;
+
+  public
   function typeCall
     input output Expression callExp;
     input SourceInfo info;
           output Type ty;
           output DAE.Const variability;
   protected
-    Call call, argtycall;
+    Call call;
+  algorithm
+
+    (call, ty, variability) := match callExp
+      case Expression.CALL(UNTYPED_CALL()) then typeNormalCall(callExp.call, scope, info);
+      case Expression.CALL(UNTYPED_MAP_CALL()) then typeIteratorCall(callExp.call, scope, info);
+    end match;
+
+    callExp := Expression.CALL(call);
+
+  end typeCall;
+
+  function typeIteratorCall
+    input output Call call;
+    input InstNode scope;
+    input SourceInfo info;
+          output Type ty;
+          output DAE.Const variability;
+  protected
+    String name;
+  algorithm
+
+    _ := match call
+      case UNTYPED_MAP_CALL() algorithm
+        name := ComponentRef.toString(call.ref);
+
+        (call, ty, variability) := typeMapIteratorCall(call, scope, info);
+
+      then ();
+    end match;
+
+  end typeIteratorCall;
+
+  function typeMapIteratorCall
+    input output Call call;
+    input InstNode scope;
+    input SourceInfo info;
+          output Type ty;
+          output DAE.Const variability;
+  protected
+    InstNode fn_node;
+    list<Function> fnl;
+    Boolean fn_typed;
+    Function fn;
+    Expression arg;
+    Type arg_ty;
+    Binding binding;
+    DAE.Const arg_var;
+  algorithm
+    (call , ty, variability) := match call
+      case UNTYPED_MAP_CALL(ref = ComponentRef.CREF(node = fn_node))
+        algorithm
+          // Fetch the cached function(s).
+          CachedData.FUNCTION(fnl, fn_typed) := InstNode.cachedData(fn_node);
+          assert(listLength(fnl) == 1, getInstanceName() + " overloaded functions in mapping functions not handled yet.");
+          fn::_ := fnl;
+
+          // Type the function(s) if not already done.
+          if not fn_typed then
+            fnl := list(Function.typeFunction(f) for f in fnl);
+            InstNode.setCachedData(CachedData.FUNCTION(fnl, true), fn_node);
+          end if;
+
+
+          for iter in call.iters loop
+            Typing.typeIterator(iter, scope, false);
+          end for;
+          (arg, arg_ty, arg_var) := Typing.typeExp(call.exp,scope,info);
+
+          ty := arg_ty;
+          variability := DAE.C_CONST();
+          for iter in call.iters loop
+            binding := Component.getBinding(InstNode.component(iter));
+            ty := Type.liftArrayLeftList(ty,Type.arrayDims(Binding.getType(binding)));
+            variability := Types.constAnd(variability,Binding.variability(binding));
+          end for;
+
+        then
+          (TYPED_MAP_CALL(fn, ty, arg, call.iters), ty, variability);
+          // (TYPED_CALL(fn, args, ca), ty, variability);
+
+      else
+        algorithm
+          assert(false, getInstanceName() + " got invalid function call expression");
+        then
+          fail();
+    end match;
+  end typeMapIteratorCall;
+
+
+  function typeNormalCall
+    input output Call call;
+    input InstNode scope;
+    input SourceInfo info;
+          output Type ty;
+          output DAE.Const variability;
+  protected
+    Call argtycall;
     InstNode fn_node;
     list<Function> fnl;
     Boolean fn_typed;
@@ -178,8 +444,8 @@ uniontype Call
     CallAttributes ca;
     list<TypedArg> tyArgs;
   algorithm
-    (callExp, ty, variability) := match callExp
-      case Expression.CALL(call = call as UNTYPED_CALL(ref = ComponentRef.CREF(node = fn_node)))
+    (call , ty, variability) := match call
+      case UNTYPED_CALL(ref = ComponentRef.CREF(node = fn_node))
         algorithm
           // Fetch the cached function(s).
           CachedData.FUNCTION(fnl, fn_typed) := InstNode.cachedData(fn_node);
@@ -215,9 +481,8 @@ uniontype Call
             Function.inlineBuiltin(fn),
             DAE.NO_TAIL());
 
-          callExp := Expression.CALL(TYPED_CALL(fn, args, ca));
         then
-          (callExp, ty, variability);
+          (TYPED_CALL(fn, args, ca), ty, variability);
 
       else
         algorithm
@@ -225,7 +490,7 @@ uniontype Call
         then
           fail();
     end match;
-  end typeCall;
+  end typeNormalCall;
 
   function typeArgs
     input output Call call;
@@ -363,9 +628,9 @@ uniontype Call
   protected
     Boolean slotmatched, typematched, has_cast;
   algorithm
-    (out_args, slotmatched) := Function.fillArgs(args, named_args, func, SOME(info));
+    (out_args, slotmatched) := Function.fillArgs(args, named_args, func, info);
     if slotmatched then
-      (out_args, matched, matchKind) := Function.matchArgs(func, out_args, SOME(info));
+      (out_args, matched, matchKind) := Function.matchArgs(func, out_args, info);
     end if;
   end matchFunction;
 
@@ -414,6 +679,12 @@ uniontype Call
           list(Expression.toDAE(e) for e in call.arguments),
           CallAttributes.toDAE(call.attributes));
 
+      case TYPED_MAP_CALL()
+        then DAE.REDUCTION(
+          DAE.REDUCTIONINFO(Function.name(call.fn), Absyn.COMBINE(), Type.toDAE(call.ty), NONE(), "TMP", "TMP", NONE()),
+          Expression.toDAE(call.exp),
+          list(iteratorToDAE(iter) for iter in call.iters));
+
       else
         algorithm
           assert(false, getInstanceName() + " got untyped call");
@@ -421,6 +692,22 @@ uniontype Call
           fail();
     end match;
   end toDAE;
+
+  function iteratorToDAE
+    input InstNode iter;
+    output DAE.ReductionIterator diter;
+  protected
+    Component c;
+    Binding b;
+  algorithm
+    c := InstNode.component(iter);
+    diter := match c
+      case Component.ITERATOR() algorithm
+        b := Component.getBinding(c);
+      then
+        DAE.REDUCTIONITER(InstNode.name(iter), Expression.toDAE(Binding.getTypedExp(b)), NONE(), Type.toDAE(Binding.getType(b)));
+    end match;
+  end iteratorToDAE;
 
   function toString
     input Call call;
@@ -448,12 +735,27 @@ uniontype Call
         then
           name + "(" + arg_str + ")";
 
+      case UNTYPED_MAP_CALL()
+        algorithm
+          name := ComponentRef.toString(call.ref);
+          arg_str := Expression.toString(call.exp);
+        then
+          name + "(" + arg_str + ")";
+
       case TYPED_CALL()
         algorithm
           name := Absyn.pathString(Function.name(call.fn));
           arg_str := stringDelimitList(list(Expression.toString(arg) for arg in call.arguments), ", ");
         then
           name + "(" + arg_str + ")";
+
+      case TYPED_MAP_CALL()
+        algorithm
+          name := Absyn.pathString(Function.name(call.fn));
+          arg_str := Expression.toString(call.exp);
+        then
+          name + "(" + arg_str + ")";
+
     end match;
   end toString;
 
@@ -463,6 +765,7 @@ uniontype Call
   algorithm
     fn := match call
       case TYPED_CALL() then call.fn;
+      case TYPED_MAP_CALL() then call.fn;
       else
         algorithm
           assert(false, getInstanceName() + " got untyped function");

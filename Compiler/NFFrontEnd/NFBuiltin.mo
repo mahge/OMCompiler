@@ -89,6 +89,11 @@ encapsulated package Elements
     SCode.defaultPrefixes, SCode.NOT_ENCAPSULATED(), SCode.NOT_PARTIAL(), SCode.R_TYPE(),
     SCode.PARTS({}, {}, {}, {}, {}, {}, {}, NONE()),
     SCode.noComment, Absyn.dummyInfo);
+    
+  constant SCode.Element ANY = SCode.CLASS("polymorphic",
+    SCode.defaultPrefixes, SCode.NOT_ENCAPSULATED(), SCode.NOT_PARTIAL(), SCode.R_TYPE(),
+    SCode.PARTS({}, {}, {}, {}, {}, {}, {}, NONE()),
+    SCode.noComment, Absyn.dummyInfo);
 
   constant SCode.Element STATESELECT = SCode.CLASS("StateSelect",
     SCode.defaultPrefixes, SCode.NOT_ENCAPSULATED(), SCode.NOT_PARTIAL(), SCode.R_TYPE(),
@@ -106,6 +111,12 @@ end Elements;
 // InstNodes for the builtin types. These have empty class trees to prevent
 // access to the attributes via dot notation (which is not needed for
 // modifiers and illegal in other cases).
+constant InstNode ANY_TYPE = InstNode.CLASS_NODE("polymorphic",
+  Elements.ANY,
+  Pointer.createImmutable(Class.PARTIAL_BUILTIN(Type.ANY_TYPE("unknown"), ClassTree.EMPTY(), listArray({}), Modifier.NOMOD())),
+  Pointer.createImmutable(NFInstNode.CachedData.NO_CACHE()),
+  InstNode.EMPTY_NODE(), InstNodeType.NORMAL_CLASS());
+
 constant InstNode REAL_TYPE = InstNode.CLASS_NODE("Real",
   Elements.REAL,
   Pointer.createImmutable(Class.PARTIAL_BUILTIN(Type.REAL(), NFClassTree.EMPTY, Modifier.NOMOD())),
