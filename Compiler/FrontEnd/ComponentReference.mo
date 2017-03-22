@@ -2655,6 +2655,34 @@ algorithm
   end match;
 end crefStripSubs;
 
+public function crefStripRecordAndBasicSubs "
+Removes subscript of a componentref for the parts that are either
+arrays of records or basic types."
+  input output DAE.ComponentRef inCref;
+algorithm
+  () := match(inCref)
+    case DAE.CREF_IDENT()
+      algorithm
+        if Types.isRecord(Types.arrayElementType(inCref.identType)) or
+           Types.basicType(Types.arrayElementType(inCref.identType)) then
+             inCref.subscriptLst := {};
+        end if;
+      then
+        ();
+
+    case (DAE.CREF_QUAL())
+      algorithm
+        inCref.componentRef := crefStripRecordAndBasicSubs(inCref.componentRef);
+        if Types.isRecord(Types.arrayElementType(inCref.identType)) or
+           Types.basicType(Types.arrayElementType(inCref.identType)) then
+             inCref.subscriptLst := {};
+        end if;
+      then
+        ();
+
+  end match;
+end crefStripRecordAndBasicSubs;
+
 public function crefStripPrefix
 "Strips a prefix/cref from a component reference"
   input DAE.ComponentRef cref;

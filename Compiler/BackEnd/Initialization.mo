@@ -504,14 +504,14 @@ algorithm
     // inactive when equation during initialization
     case DAE.STMT_WHEN(exp=condition, statementLst=stmts, elseWhen=NONE()) equation
       false = Expression.containsInitialCall(condition, false);
-      crefLst = CheckModel.algorithmStatementListOutputs(stmts, DAE.EXPAND()); // expand as we're in an algorithm
+      crefLst = CheckModel.algorithmStatementListOutputs(stmts);
       leftCrs = List.fold(crefLst, BaseHashSet.add, inLeftCrs);
     then (inAcc, leftCrs);
 
     // inactive when equation during initialization with elsewhen part
     case DAE.STMT_WHEN(exp=condition, statementLst=stmts, elseWhen=SOME(stmt)) equation
       false = Expression.containsInitialCall(condition, false);
-      crefLst = CheckModel.algorithmStatementListOutputs(stmts, DAE.EXPAND()); // expand as we're in an algorithm
+      crefLst = CheckModel.algorithmStatementListOutputs(stmts);
       leftCrs = List.fold(crefLst, BaseHashSet.add, inLeftCrs);
       (stmts, leftCrs) = inlineWhenForInitializationWhenStmt(stmt, leftCrs, inAcc);
     then (stmts, leftCrs);
