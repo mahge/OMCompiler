@@ -59,8 +59,74 @@ import TypeCheck = NFTypeCheck;
 import Types;
 import Typing = NFTyping;
 import NFInstUtil;
+import NFFunction.Function;
 
 public
+/*
+function newDefaultConstructor
+  input Absyn.Path recPath;
+  input output InstNode recNode;
+  input SourceInfo info;
+algorithm
+  recNode := InstNode.setNodeType(NFInstNode.InstNodeType.ROOT_CLASS(), recNode);
+  recNode := Inst.instantiate(recNode);
+  Inst.instExpressions(recNode);
+  fn := Function.new(recPath, recNode);
+  fnNode := InstNode.cacheAddFunc(fn, recNode);
+end newDefaultConstructor;
+*/
+
+
+function new
+  input Absyn.Path path;
+  input InstNode node;
+  output Function fn;
+protected
+  Class cls;
+  list<InstNode> inputs, outputs, locals;
+  DAE.FunctionAttributes attr;
+  Pointer<Boolean> collected;
+  Absyn.Path con_path;
+algorithm
+  (inputs, locals) := collectRecordParams(node);
+  attr := DAE.FUNCTION_ATTRIBUTES_DEFAULT;
+  // attr := makeAttributes(node, inputs, outputs);
+  collected := Pointer.create(false);
+  con_path := Absyn.suffixPath(path,"'constructor'");
+  fn := Function.FUNCTION(con_path, node, inputs, {}, locals, {}, Type.UNKNOWN(), attr, collected);
+end new;
+
+
+function collectRecordParams
+  input InstNode recNode;
+  output list<InstNode> inputs = {};
+  output list<InstNode> locals = {};
+protected
+  InstNode compnode;
+  Component.Attributes attr;
+  array<InstNode> components;
+  Component comp;
+algorithm
+  Class.INSTANCED_CLASS(components = components) := InstNode.getClass(recNode);
+
+  for i in arrayLength(components):-1:1 loop
+     comp := InstNode.component(components[i]);
+     if Component.isPublic(comp) then
+       if Component.isConst(comp) then
+         if not Component.hasBinding(comp) then
+           inputs := components[i]::inputs;
+         else
+           locals := components[i]::inputs;
+         end if;
+       else
+         inputs := components[i]::inputs;
+       end if;
+     else
+       locals := components[i]::inputs;
+     end if;
+  end for;
+end collectRecordParams;
+
 function typeRecordCall
   input Absyn.ComponentRef recName;
   input Absyn.FunctionArgs callArgs;

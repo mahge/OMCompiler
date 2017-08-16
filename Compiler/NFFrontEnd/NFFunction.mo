@@ -56,6 +56,9 @@ import NFInstNode.CachedData;
 import Lookup = NFLookup;
 import ClassTree = NFClassTree.ClassTree;
 
+import NFLookupState.LookupState;
+import Record = NFRecord;
+
 import MatchKind = NFTypeCheck.MatchKind;
 
 public
@@ -189,6 +192,29 @@ uniontype Function
   end new;
 
   protected
+  function assertCallable
+    input LookupState endState;
+    input InstNode node;
+    input Absyn.ComponentRef name;
+    input SourceInfo info;
+  protected
+    SCode.Element def;
+  algorithm
+    () := match (endState)
+      local
+      case LookupState.STATE_FUNC() then ();
+      case LookupState.STATE_CLASS() algorithm
+        def := InstNode.definition(node);
+        if SCode.isRecord(def) then
+          print("");
+        else
+          fail();
+        end if;
+      then ();
+    end match;
+  end assertCallable;
+
+
   function lookupFunction
     input Absyn.ComponentRef functionName;
     input InstNode scope;
@@ -199,6 +225,7 @@ uniontype Function
   protected
     list<InstNode> nodes;
     InstNode found_scope;
+    LookupState state;
   algorithm
     try
       // Make sure the name is a path.
@@ -209,7 +236,9 @@ uniontype Function
     end try;
 
     // Look up the function and create a cref for it.
-    (node, nodes, found_scope) := Lookup.lookupFunctionName(functionName, scope, info);
+    //(node, nodes, found_scope) := Lookup.lookupFunctionName(functionName, scope, info);
+    (node, nodes, found_scope, state) := Lookup.lookupCref(functionName, scope, info);
+    assertCallable(state, node, functionName, info);
 
     for s in InstNode.scopeList(found_scope) loop
       functionPath := Absyn.QUALIFIED(InstNode.name(s), functionPath);
@@ -246,14 +275,26 @@ uniontype Function
     input Absyn.Path fnPath;
     input output InstNode fnNode;
     input SourceInfo info;
+  protected
+    SCode.Element def;
   algorithm
 
-    fnNode := match InstNode.definition(fnNode)
+    def := InstNode.definition(fnNode);
+    fnNode := match def
       local
         SCode.ClassDef cdef;
         Function fn;
         Absyn.ComponentRef cr;
         InstNode sub_fnNode;
+
+      case SCode.CLASS(classDef = cdef as SCode.PARTS()) guard SCode.isRecord(def)
+        algorithm
+          fnNode := InstNode.setNodeType(NFInstNode.InstNodeType.ROOT_CLASS(), fnNode);
+          fnNode := Inst.instantiate(fnNode);
+          Inst.instExpressions(fnNode);
+          fn := Record.new(fnPath, fnNode);
+          fnNode := InstNode.cacheAddFunc(fn, fnNode);
+        then fnNode;
 
       case SCode.CLASS(classDef = cdef as SCode.PARTS())
         algorithm

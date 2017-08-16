@@ -246,47 +246,6 @@ uniontype Call
 
   end instIteratorCall;
 
-  function createIteratorCall
-    input ComponentRef fn_ref;
-    input Expression exp;
-    input list<InstNode> iters;
-    input InstNode scope;
-    input SourceInfo info;
-    output Call call;
-  protected
-    String name;
-    // InstNode arr_fn_node;
-    ComponentRef arr_fn_ref;
-    Call arr_call;
-  algorithm
-    name := ComponentRef.toString(fn_ref);
-    call := match name
-
-      case "min" algorithm
-        (arr_fn_ref, _) := Function.instFunc(Absyn.CREF_IDENT("array", {}),scope,info);
-        arr_call := UNTYPED_MAP_CALL(arr_fn_ref, exp, iters);
-      then UNTYPED_CALL(fn_ref, {}, {Expression.CALL(arr_call)}, {});
-
-      case "max" algorithm
-        (arr_fn_ref, _) := Function.instFunc(Absyn.CREF_IDENT("array", {}),scope,info);
-        arr_call := UNTYPED_MAP_CALL(arr_fn_ref, exp, iters);
-      then UNTYPED_CALL(fn_ref, {}, {Expression.CALL(arr_call)}, {});
-
-      case "sum" algorithm
-        (arr_fn_ref, _) := Function.instFunc(Absyn.CREF_IDENT("array", {}),scope,info);
-        arr_call := UNTYPED_MAP_CALL(arr_fn_ref, exp, iters);
-      then UNTYPED_CALL(fn_ref, {}, {Expression.CALL(arr_call)}, {});
-
-      case "product" algorithm
-        (arr_fn_ref, _) := Function.instFunc(Absyn.CREF_IDENT("array", {}),scope,info);
-        arr_call := UNTYPED_MAP_CALL(arr_fn_ref, exp, iters);
-      then UNTYPED_CALL(fn_ref, {}, {Expression.CALL(arr_call)}, {});
-
-      else algorithm
-        then UNTYPED_MAP_CALL(fn_ref, exp, iters);
-    end match;
-  end createIteratorCall;
-
   function instIteratorCallArgs
     input Absyn.FunctionArgs args;
     input InstNode scope;
