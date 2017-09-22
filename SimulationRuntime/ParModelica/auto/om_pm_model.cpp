@@ -300,6 +300,11 @@ void OMModel::initialize(const char* model_name_, DATA* data_, threadData_t* thr
 
 inline void check_tag(int index, const std::string& tag) {
     if (tag == "dummy"
+        or tag == "tornsystem"
+        or tag == "system"
+
+        or tag == "torn"
+        or tag == "jacobian"
         or tag == "assign"
         or tag == "residual"
         or tag == "algorithm"
@@ -309,6 +314,13 @@ inline void check_tag(int index, const std::string& tag) {
       std::cerr << index << " : with unknown tag : " << tag << std::endl;
       exit(1);
     }
+}
+
+inline bool is_system_tag(const std::string& tag) {
+    if (tag == "tornsystem"
+        or tag == "system")
+        return true;
+    return false;
 }
 
 inline void check_container_dispaly(int index, const std::string& disp) {
@@ -347,7 +359,7 @@ void OMModel::load_from_json(TaskSystemT& task_system, const std::string& eq_to_
         check_tag(index, eq["tag"]);
 
         /*an equation with no parent and is not a container(system). create a new node for it.*/
-        if(eq["parent"] == nullptr && eq["tag"] != "container") {
+        if(eq["parent"] == nullptr && !is_system_tag(eq["tag"])) {
             Equation current_node;
             current_node.index = index;
 
@@ -369,7 +381,7 @@ void OMModel::load_from_json(TaskSystemT& task_system, const std::string& eq_to_
         }
         /*an equation with parent and is not a complex system. collect references from it to pass
           to its parent.*/
-        else if(eq["parent"] != nullptr && eq["tag"] != "container") {
+        else if(eq["parent"] != nullptr && !is_system_tag(eq["tag"])) {
             if(current_parent == -1)
                 current_parent = eq["parent"];
             else if (eq["parent"] != current_parent) {
@@ -387,7 +399,7 @@ void OMModel::load_from_json(TaskSystemT& task_system, const std::string& eq_to_
         }
         /*an equation with no parent and is a complex system. create a new node for it
           using the collected rhs and lsh references from its children.*/
-        else if(eq["parent"] == nullptr && eq["tag"] == "container") {
+        else if(eq["parent"] == nullptr && is_system_tag(eq["tag"])) {
 
             check_container_dispaly(index,eq["display"]);
 

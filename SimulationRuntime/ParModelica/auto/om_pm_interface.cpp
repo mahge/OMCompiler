@@ -79,6 +79,7 @@ void PM_functionDAE(int size, DATA* data, threadData_t* threadData, FunctionType
 
 void PM_functionODE(int size, DATA* data, threadData_t* threadData, FunctionType* functionODE_systems) {
 
+    // static int step_nr = 0;
     // pm_om_model.total_alg_time.start_timer();
     pm_om_model.ODE_scheduler.execute();
 
@@ -90,7 +91,7 @@ void PM_functionODE(int size, DATA* data, threadData_t* threadData, FunctionType
 
     // double step_cost = pm_om_model.total_alg_time.get_elapsed_time();
     // pm_om_model.total_alg_time.reset_timer();
-    // std::cout << step_cost << std::endl;
+    // std::cout << ++step_nr << ", " << step_cost << std::endl;
 }
 
 void PM_functionAlg(int size, DATA* data, threadData_t* threadData, FunctionType* functionAlg_systems) {
