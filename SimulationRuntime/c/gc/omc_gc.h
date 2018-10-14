@@ -156,10 +156,14 @@ typedef threadData_t* OpenModelica_threadData_ThreadData;
 
 #else /* #if (defined(OMC_MINIMAL_RUNTIME) || defined(OMC_FMI_RUNTIME)) */
 
+
+#define GC_THREADS
 #include <gc.h>
 /* gc.h doesn't include this by default; and the actual header redirects dlopen, which does not have an implementation */
 int GC_pthread_create(pthread_t *,const pthread_attr_t *,void *(*)(void *), void *);
 int GC_pthread_join(pthread_t, void **);
+
+
 
 #endif /* #if (defined(OMC_MINIMAL_RUNTIME) || defined(OMC_FMI_RUNTIME)) */
 
