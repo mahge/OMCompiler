@@ -1,5 +1,5 @@
 OMBUILDDIR = $(realpath ../../../../)/build
-OMCOMPILER_ROOT = ../../../
+OMCOMPILER_ROOT = $(realpath ../../../)
 
 OPENMODELICA_INC=$(OMBUILDDIR)/include/omc/c/
 PARMODELICAAUTO_INC=$(OPENMODELICA_INC)/ParModelica/auto/
