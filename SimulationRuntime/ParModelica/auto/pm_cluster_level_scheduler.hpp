@@ -40,6 +40,7 @@
 
 #include <tbb/parallel_for.h>
 #include <tbb/task_scheduler_init.h>
+#include <tbb/tick_count.h>
 
 #include "pm_clustering.hpp"
 
@@ -61,13 +62,32 @@ struct TBBConcurrentStepExecutor {
     typedef typename ClusterLevels::value_type SameLevelClusterIdsType;
     typedef typename SameLevelClusterIdsType::iterator ClusteIdIter;
 
+
 private:
     GraphType& sys_graph;
+    std::set<DWORD>& knownthreads;
 
 public:
-    TBBConcurrentStepExecutor(GraphType& g) : sys_graph(g) {}
+    TBBConcurrentStepExecutor(GraphType& g, std::set<DWORD>& k) : sys_graph(g) , knownthreads(k) {}
 
     void operator()( tbb::blocked_range<ClusteIdIter>& range ) const {
+
+        /* Register thread to bohem GC if it is not registered already*/
+        if(!GC_thread_is_registered()) {
+            struct GC_stack_base sb;
+            memset (&sb, 0, sizeof(sb));
+            GC_get_stack_base(&sb);
+            fprintf(stderr,"Found unregisterd thread =  0x%lx \n", (long)GetCurrentThreadId());
+            GC_register_my_thread (&sb);
+            // std::cerr << "New Theread registerd = " << GC_thread_is_registered() << std::endl;
+        }
+        else {
+            DWORD id = GetCurrentThreadId();
+            if(!knownthreads.count(id)) {
+                fprintf(stderr,"parmod registerd thread =  0x%lx \n", id);
+                knownthreads.insert(id);
+            }
+        }
 
         for(ClusteIdIter clustid_iter = range.begin(); clustid_iter != range.end(); ++clustid_iter) {
             ClusterIdType& curr_clust_id = *clustid_iter;
@@ -109,19 +129,23 @@ private:
     tbb::task_scheduler_init tbb_system;
     TBBConcurrentStepExecutor<TaskType> step_executor;
 
+    std::set<DWORD> knownthreads;
 public:
 
     PMTimer execution_timer;
 	PMTimer clustering_timer;
-    // PMTimer extra_timer;
+    PMTimer extra_timer;
 
     StepLevels(TaskSystemType& ts) :
       task_system(ts)
       , tbb_system(4)
-      , step_executor(task_system.sys_graph)
+      , step_executor(task_system.sys_graph, knownthreads)
     {
         profiled = false;
         schedule_valid = false;
+        GC_allow_register_threads();
+
+        // GC_use_threads_discovery();
     }
 
     void estimate_speedup() {
@@ -244,6 +268,8 @@ public:
 
         GraphType& sys_graph = task_system.sys_graph;
 
+        tbb::tick_count t0 = tbb::tick_count::now();
+        extra_timer.start_timer();
         typename GraphType::vertex_iterator vert_iter, vert_end;
         boost::tie(vert_iter, vert_end) = vertices(sys_graph);
         /*! skip the root node. */
@@ -251,11 +277,15 @@ public:
         for ( ; vert_iter != vert_end; ++vert_iter) {
             sys_graph[*vert_iter].profile_execute();
         }
+        extra_timer.stop_timer();
+        tbb::tick_count t1 = tbb::tick_count::now();
+        printf("work took %g seconds\n",(t1-t0).seconds());
+        double step_cost = extra_timer.get_elapsed_time();
+        std::cout << "P: " << step_cost << std::endl;
+        extra_timer.reset_timer();
 
         execution_timer.stop_timer();
-        // double step_cost = execution_timer.get_elapsed_time();
-        // std::cout << "P: " << step_cost << std::endl;
-        // execution_timer.reset_timer();
+
 
         this->profiled = true;
         this->schedule_valid = false;

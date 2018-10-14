@@ -14,7 +14,7 @@ INCDIRS = -I"../../c" -I$(BOOST_HOME) -I"../pugixml-1.2/src/"
 CC=@CC@
 CXX=@CXX@
 CFLAGS=@CFLAGS@ $(INCDIRS)
-CPPFLAGS= -O3 -Wall -fPIC 
+CPPFLAGS= @CFLAGS@ -O3 -Wall -fPIC
 
 OS_SRCS = pm_posix_timer.cpp
 

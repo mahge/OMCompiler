@@ -6,15 +6,15 @@ PARMODELICAAUTO_INC=$(OPENMODELICA_INC)/ParModelica/auto/
 OPENMODELICA_LIB=$(OMBUILDDIR)/lib/omc/
 OPENMODELICA_BIN=$(OMBUILDDIR)/bin/
 
-TBB_INC = $(OMC_TBB_INC)
+TBB_INC = ../tbb/include
 TBB_LIB = $(OMC_TBB_LIB)
 BOOST_HOME = $(OMDEV)/lib/3rdParty/boost-1_49
 INCDIRS = -I"../../c" -I$(TBB_INC) -I$(BOOST_HOME) -I$(OMCOMPILER_ROOT)/3rdParty/pugixml/src/ -I$(OMCOMPILER_ROOT)/3rdParty/gc/include
 
 CC=gcc
 CXX=g++ -std=c++11
-CFLAGS= -g -Wall
-CPPFLAGS= -g -Wall
+CFLAGS= -O3 -Wall
+CPPFLAGS= -O3 -Wall
 
 OS_SRCS = pm_win_timer.cpp
 
