@@ -2504,6 +2504,16 @@ algorithm
   cflags := if stringEq(Config.simCodeTarget(),"JavaScript") then "-Os -Wno-warn-absolute-paths" else cflags;
   ldflags := System.getLDFlags();
   rtlibs := if isFunction then System.getRTLibs() else (if isFMU then System.getRTLibsFMU() else System.getRTLibsSim());
+
+  // Remove omcgc from linked libraries since it is lined to tbb.dll. Otherwise we have two copies of GC_* global variables on windows.
+  // This includes (among many things) the array of thread ids known to GC. That means threads created by tbb.dll are not visible to
+  // the model executable since it has its own thread table from its own libomcgc. Sigh!!!!!!
+  if(Flags.isSet(Flags.PARMODAUTO)) then
+    ldflags := System.stringReplace(ldflags, " -lomcgc", "");
+    rtlibs := System.stringReplace(rtlibs, " -lomcgc", "");
+    rtlibs := " -lParModelicaAuto -ltbb " + rtlibs;
+  end if;
+
   platform := System.modelicaPlatform();
   compileDir :=  System.pwd() + System.pathDelimiter();
   makefileParams := SimCodeFunction.MAKEFILE_PARAMS(ccompiler, cxxcompiler, linker, exeext, dllext,

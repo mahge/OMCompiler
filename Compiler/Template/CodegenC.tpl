@@ -5723,7 +5723,6 @@ case SIMCODE(modelInfo=MODELINFO(varInfo=varInfo as VARINFO(__)), delayedExps=DE
   let libsPos1 = if not dirExtra then libsStr //else ""
   let libsPos2 = if dirExtra then libsStr // else ""
   let ParModelicaExpLibs = if acceptParModelicaGrammar() then '-lParModelicaExpl -lOpenCL' // else ""
-  let ParModelicaAutoLibs = if Flags.isSet(Flags.PARMODAUTO) then '-lParModelicaAuto -ltbb -lboost_system-mt' // else ""
   let extraCflags = match sopt case SOME(s as SIMULATION_SETTINGS(__)) then
     match s.method case "dassljac" then "-D_OMC_JACOBIAN "
 
@@ -5743,7 +5742,7 @@ case SIMCODE(modelInfo=MODELINFO(varInfo=varInfo as VARINFO(__)), delayedExps=DE
   %>CPPFLAGS=<%makefileParams.includes ; separator=" "%> -I"<%makefileParams.omhome%>/include/omc/c" -I. -DOPENMODELICA_XML_FROM_FILE_AT_RUNTIME<% if stringEq(Config.simCodeTarget(),"JavaScript") then " -DOMC_EMCC"%><% if Flags.isSet(Flags.OMC_RELOCATABLE_FUNCTIONS) then " -DOMC_GENERATE_RELOCATABLE_CODE"%> -DOMC_MODEL_PREFIX=<%modelNamePrefix(simCode)%> -DOMC_NUM_MIXED_SYSTEMS=<%varInfo.numMixedSystems%> -DOMC_NUM_LINEAR_SYSTEMS=<%varInfo.numLinearSystems%> -DOMC_NUM_NONLINEAR_SYSTEMS=<%varInfo.numNonLinearSystems%> -DOMC_NDELAY_EXPRESSIONS=<%maxDelayedIndex%> -DOMC_NVAR_STRING=<%varInfo.numStringAlgVars%>
   LDFLAGS=<%dirExtra%> <%
   if stringEq(Config.simCodeTarget(),"JavaScript") then <<-L'<%makefileParams.omhome%>/lib/<%getTriple()%>/omc/emcc' -lblas -llapack -lexpat -lSimulationRuntimeC -s TOTAL_MEMORY=805306368 -s OUTLINING_LIMIT=20000 --pre-js $(OMC_EMCC_PRE_JS)>>
-  else <<-L"<%makefileParams.omhome%>/lib/<%getTriple()%>/omc" -L"<%makefileParams.omhome%>/lib" -Wl,<% if boolOr(stringEq(makefileParams.platform, "win32"),stringEq(makefileParams.platform, "win64")) then "--stack,16777216,"%>-rpath,"<%makefileParams.omhome%>/lib/<%getTriple()%>/omc" -Wl,-rpath,"<%makefileParams.omhome%>/lib" <%ParModelicaExpLibs%> <%ParModelicaAutoLibs%> <%makefileParams.ldflags%> <%makefileParams.runtimelibs%> >>
+  else <<-L"<%makefileParams.omhome%>/lib/<%getTriple()%>/omc" -L"<%makefileParams.omhome%>/lib" -Wl,<% if boolOr(stringEq(makefileParams.platform, "win32"),stringEq(makefileParams.platform, "win64")) then "--stack,16777216,"%>-rpath,"<%makefileParams.omhome%>/lib/<%getTriple()%>/omc" -Wl,-rpath,"<%makefileParams.omhome%>/lib" <%ParModelicaExpLibs%> <%makefileParams.ldflags%> <%makefileParams.runtimelibs%> >>
   %>
   MAINFILE=<%fileNamePrefix%>.c
   MAINOBJ=<%fileNamePrefix%>.o
