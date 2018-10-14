@@ -7,13 +7,13 @@ OPENMODELICA_LIB=$(TOP_BUILDDIR)/lib/$(HOST_SHORT)/omc
 OPENMODELICA_BIN=$(TOP_BUILDDIR)/bin/
 
 BOOST_HOME = @BOOSTHOME@
-INCDIRS = -I"../../c" -I$(BOOST_HOME) -I"../pugixml-1.2/src/" 
+INCDIRS = -I"../../c" -I$(BOOST_HOME) -I$(OMCOMPILER_ROOT)/3rdParty/tbb/include -I$(OMCOMPILER_ROOT)/3rdParty/pugixml/src/ -I$(OMCOMPILER_ROOT)/3rdParty/gc/include
 
 
 
 CC=@CC@
 CXX=@CXX@
-CFLAGS=@CFLAGS@ $(INCDIRS)
+CFLAGS=@CFLAGS@ -O3
 CPPFLAGS= @CFLAGS@ -O3 -Wall -fPIC
 
 OS_SRCS = pm_posix_timer.cpp

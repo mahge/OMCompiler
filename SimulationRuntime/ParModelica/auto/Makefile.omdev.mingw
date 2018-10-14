@@ -9,7 +9,7 @@ OPENMODELICA_BIN=$(OMBUILDDIR)/bin/
 TBB_INC = ../tbb/include
 TBB_LIB = $(OMC_TBB_LIB)
 BOOST_HOME = $(OMDEV)/lib/3rdParty/boost-1_49
-INCDIRS = -I"../../c" -I$(TBB_INC) -I$(BOOST_HOME) -I$(OMCOMPILER_ROOT)/3rdParty/pugixml/src/ -I$(OMCOMPILER_ROOT)/3rdParty/gc/include
+INCDIRS = -I"../../c" -I$(BOOST_HOME) -I$(OMCOMPILER_ROOT)/3rdParty/tbb/include -I$(OMCOMPILER_ROOT)/3rdParty/pugixml/src/ -I$(OMCOMPILER_ROOT)/3rdParty/gc/include
 
 CC=gcc
 CXX=g++ -std=c++11
