@@ -79,28 +79,23 @@ void PM_functionDAE(int size, DATA* data, threadData_t* threadData, FunctionType
 
 void PM_functionODE(int size, DATA* data, threadData_t* threadData, FunctionType* functionODE_systems) {
 
-    // pm_om_model.total_alg_time.start_timer();
     pm_om_model.ODE_scheduler.execute();
 
     // pm_om_model.ODE_scheduler.execution_timer.start_timer();
     // for(int i = 0; i < size; ++i)
         // functionODE_systems[i](data, threadData);
     // pm_om_model.ODE_scheduler.execution_timer.stop_timer();
-    // pm_om_model.total_alg_time.stop_timer();
 
-    // double step_cost = pm_om_model.total_alg_time.get_elapsed_time();
-    // pm_om_model.total_alg_time.reset_timer();
-    // std::cout << step_cost << std::endl;
 }
 
 void PM_functionAlg(int size, DATA* data, threadData_t* threadData, FunctionType* functionAlg_systems) {
 
-    pm_om_model.total_alg_time.start_timer();
+    pm_om_model.ALG_scheduler.execution_timer.start_timer();
 
     for(int i = 0; i < size; ++i)
         functionAlg_systems[i](data, threadData);
 
-    pm_om_model.total_alg_time.stop_timer();
+    pm_om_model.ALG_scheduler.execution_timer.start_timer();
 
 }
 
@@ -108,8 +103,9 @@ void dump_times() {
     utility::log("") << "Total INI: " << pm_om_model.INI_scheduler.execution_timer.get_elapsed_time() << std::endl;
     utility::log("") << "Total DAE: " << pm_om_model.DAE_scheduler.execution_timer.get_elapsed_time() << std::endl;
     utility::log("") << "Total ODE: " << pm_om_model.ODE_scheduler.execution_timer.get_elapsed_time() << std::endl;
-    utility::log("") << "Total ODE: " << pm_om_model.ODE_scheduler.clustering_timer.get_elapsed_time() << std::endl;
-    utility::log("") << "Total ALG: " << pm_om_model.total_alg_time.get_elapsed_time() << std::endl;
+    utility::log("") << "Total ALG: " << pm_om_model.ALG_scheduler.execution_timer.get_elapsed_time() << std::endl;
+    utility::log("") << "Total ODE loading: " << pm_om_model.load_system_timer.get_elapsed_time() << std::endl;
+    utility::log("") << "Total ODE Clustering: " << pm_om_model.ODE_scheduler.clustering_timer.get_elapsed_time() << std::endl;
 }
 
 

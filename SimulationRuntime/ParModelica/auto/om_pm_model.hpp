@@ -109,6 +109,8 @@ public:
     OMModel();
     void initialize(const char* , DATA* , threadData_t* , FunctionType*);
 
+    PMTimer load_system_timer;
+
     FunctionType* ini_system_funcs;
     TaskSystemT INI_system;
     SchedulerT INI_scheduler;
@@ -121,8 +123,9 @@ public:
     TaskSystemT ODE_system;
     SchedulerT ODE_scheduler;
 
-    PMTimer total_alg_time;
+    FunctionType alg_system_funcs;
     TaskSystemT ALG_system;
+    SchedulerT ALG_scheduler;
 
     void load_from_xml(TaskSystemT&, const std::string&, FunctionType*);
     void load_from_json(TaskSystemT&, const std::string&, FunctionType*);

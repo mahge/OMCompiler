@@ -100,6 +100,7 @@ public:
     }
     
     void schedule() {
+        task_system.dump_graphml("original");
 		clustering_timer.start_timer();
         cluster_merge_common::apply(task_system);
 		cluster_merge_common::dump_graph(task_system);
@@ -158,7 +159,7 @@ public:
     void execute() {
         
         if(!flow_graph_created) {
-            construct_flow_graph();
+            schedule();
         }
 
         execution_timer.start_timer();

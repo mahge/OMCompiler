@@ -93,7 +93,8 @@ void Equation::execute() {
 OMModel::OMModel() :
     INI_scheduler(INI_system),
     DAE_scheduler(DAE_system),
-    ODE_scheduler(ODE_system)
+    ODE_scheduler(ODE_system),
+    ALG_scheduler(ALG_system)
 {
     intialized = false;
 }
@@ -110,7 +111,9 @@ void OMModel::initialize(const char* model_name_, DATA* data_, threadData_t* thr
     threadData = threadData_;
     ode_system_funcs = ode_system_;
 
+    load_system_timer.start_timer();
     load_from_json(ODE_system, "ode-equations", ode_system_funcs);
+    load_system_timer.stop_timer();
     // ODE_system.construct_graph();
     // ODE_scheduler.set_up_executor(ode_system_funcs, data);
     // ODE_scheduler.schedule(4);

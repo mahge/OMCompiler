@@ -42,6 +42,9 @@
 #include <tbb/task_scheduler_init.h>
 #include <tbb/tick_count.h>
 
+#include <sys/types.h>
+#include <sys/syscall.h>
+
 #include "pm_clustering.hpp"
 
 
@@ -65,26 +68,29 @@ struct TBBConcurrentStepExecutor {
 
 private:
     GraphType& sys_graph;
-    std::set<DWORD>& knownthreads;
+    std::set<pid_t>& knownthreads;
 
 public:
-    TBBConcurrentStepExecutor(GraphType& g, std::set<DWORD>& k) : sys_graph(g) , knownthreads(k) {}
+    TBBConcurrentStepExecutor(GraphType& g, std::set<pid_t>& k) : sys_graph(g) , knownthreads(k) {}
 
     void operator()( tbb::blocked_range<ClusteIdIter>& range ) const {
 
+        pid_t id;
         /* Register thread to bohem GC if it is not registered already*/
         if(!GC_thread_is_registered()) {
+            id = syscall(SYS_gettid);
+            fprintf(stderr,"Found unregisterd thread =  %d \n", id);
+
             struct GC_stack_base sb;
             memset (&sb, 0, sizeof(sb));
             GC_get_stack_base(&sb);
-            fprintf(stderr,"Found unregisterd thread =  0x%lx \n", (long)GetCurrentThreadId());
             GC_register_my_thread (&sb);
             // std::cerr << "New Theread registerd = " << GC_thread_is_registered() << std::endl;
         }
         else {
-            DWORD id = GetCurrentThreadId();
+            id = syscall(SYS_gettid);
             if(!knownthreads.count(id)) {
-                fprintf(stderr,"parmod registerd thread =  0x%lx \n", id);
+                fprintf(stderr,"parmod registerd thread =  %d \n", id);
                 knownthreads.insert(id);
             }
         }
@@ -129,7 +135,7 @@ private:
     tbb::task_scheduler_init tbb_system;
     TBBConcurrentStepExecutor<TaskType> step_executor;
 
-    std::set<DWORD> knownthreads;
+    std::set<pid_t> knownthreads;
 public:
 
     PMTimer execution_timer;
