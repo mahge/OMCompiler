@@ -40,12 +40,12 @@
 
 #include <simulation_data.h>
 
-#include "pm_task_system.hpp"
+// #include "pm_task_system.hpp"
 #include "pm_cluster_level_scheduler.hpp"
 #include "pm_cluster_dynamic_scheduler.hpp"
 
-#include "pm_level_scheduler.hpp"
-#include "pm_dynamic_scheduler.hpp"
+// #include "pm_level_scheduler.hpp"
+// #include "pm_dynamic_scheduler.hpp"
 
 #include "pm_timer.hpp"
 
@@ -99,15 +99,15 @@ class OMModel
 
 
 
-private:
-    std::string model_name;
+public:
+    std::string name;
     bool intialized;
     DATA* data;
     threadData_t* threadData;
 
 public:
-    OMModel();
-    void initialize(const char* , DATA* , threadData_t* , FunctionType*);
+    OMModel(const std::string&);
+    void load_ODE_system();
 
     PMTimer load_system_timer;
 

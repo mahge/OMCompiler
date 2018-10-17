@@ -304,7 +304,7 @@ struct cluster_merge_level_for_cost {
             cluster_cost_comparator_by_id<GraphType> cccbi(sys_graph);
             std::sort(current_level.begin(), current_level.end(), cccbi);
 
-            double target_cost = current_level.level_cost/nr_of_clusters;
+            double target_cost = current_level.total_level_cost/nr_of_clusters;
             if(target_cost < sys_graph[current_level.front()].cost) {
                 target_cost = sys_graph[current_level.front()].cost;
             }

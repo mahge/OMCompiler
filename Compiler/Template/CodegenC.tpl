@@ -1018,7 +1018,14 @@ template simulationFile(SimCode simCode, String guid, Boolean isModelExchangeFMU
                      MMC_INIT(0);
                      omc_alloc_interface.init();
                      >>
-    let pminit = if Flags.isSet(Flags.PARMODAUTO) then 'PM_Model_init("<%fileNamePrefix%>", &data, threadData, functionODE_systems);' else ''
+    let pminit = if Flags.isSet(Flags.PARMODAUTO) then
+                    <<
+
+                    pm_model = PM_Model_create("<%fileNamePrefix%>", &data, threadData);
+                    PM_Model_load_ODE_system(pm_model, functionODE_systems);
+
+                    >>
+                 else ''
     let mainBody =
       <<
       <%symbolName(modelNamePrefixStr,"setupDataStruc")%>(&data, threadData);
@@ -1037,6 +1044,12 @@ template simulationFile(SimCode simCode, String guid, Boolean isModelExchangeFMU
 
     #define prefixedName_performQSSSimulation <%symbolName(modelNamePrefixStr,"performQSSSimulation")%>
     #include <simulation/solver/perform_qss_simulation.c>
+    >>
+    %>
+
+    <% if Flags.isSet(Flags.PARMODAUTO) then
+    <<
+    void* pm_model = NULL;
     >>
     %>
 
@@ -1197,7 +1210,7 @@ template simulationFile(SimCode simCode, String guid, Boolean isModelExchangeFMU
       <%mainTop(mainBody,"https://trac.openmodelica.org/OpenModelica/newticket")%>
 
       <%if Flags.isSet(HPCOM) then "terminateHpcOmThreads();" %>
-      <%if Flags.isSet(Flags.PARMODAUTO) then "dump_times();" %>
+      <%if Flags.isSet(Flags.PARMODAUTO) then "dump_times(pm_model);" %>
       fflush(NULL);
       EXIT(res);
       return res;
@@ -3945,7 +3958,7 @@ template functionODE(list<list<SimEqSystem>> derivativEquations, Text method, Op
     data->simulationInfo->callStatistics.functionODE++;
 
     <%symbolName(modelNamePrefix,"functionLocalKnownVars")%>(data, threadData);
-    <%if Flags.isSet(Flags.PARMODAUTO) then 'PM_functionODE(<%nrfuncs%>, data, threadData, functionODE_systems);'
+    <%if Flags.isSet(Flags.PARMODAUTO) then 'PM_evaluate_ODE_system(pm_model);'
     else fncalls %>
 
     <% if profileFunctions() then "rt_accumulate(SIM_TIMER_FUNCTION_ODE);" %>

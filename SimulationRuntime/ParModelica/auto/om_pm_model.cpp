@@ -90,26 +90,26 @@ void Equation::execute() {
 }
 
 
-OMModel::OMModel() :
-    INI_scheduler(INI_system),
-    DAE_scheduler(DAE_system),
-    ODE_scheduler(ODE_system),
-    ALG_scheduler(ALG_system)
+OMModel::OMModel(const std::string& in_name) :
+    name(in_name)
+    , INI_system(name)
+    , INI_scheduler(INI_system)
+    , DAE_system(name)
+    , DAE_scheduler(DAE_system)
+    , ODE_system(name)
+    , ODE_scheduler(ODE_system)
+    , ALG_system(name)
+    , ALG_scheduler(ALG_system)
 {
     intialized = false;
 }
 
 
 
-void OMModel::initialize(const char* model_name_, DATA* data_, threadData_t* threadData_, FunctionType* ode_system_) {
+void OMModel::load_ODE_system() {
 
     if(intialized)
         return;
-
-    model_name = model_name_;
-    data = data_;
-    threadData = threadData_;
-    ode_system_funcs = ode_system_;
 
     load_system_timer.start_timer();
     load_from_json(ODE_system, "ode-equations", ode_system_funcs);
@@ -325,7 +325,7 @@ inline void check_container_dispaly(int index, const std::string& disp) {
 }
 
 void OMModel::load_from_json(TaskSystemT& task_system, const std::string& eq_to_read, FunctionType* function_system) {
-    std::string json_file = model_name + "_ode.json";
+    std::string json_file = this->name + "_ode.json";
     utility::log("") << "Loading " << json_file << std::endl;
 
     std::set<std::string> complex_eq_lhs;

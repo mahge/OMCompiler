@@ -75,25 +75,25 @@ public:
 
     void operator()( tbb::blocked_range<ClusteIdIter>& range ) const {
 
-        pid_t id;
-        /* Register thread to bohem GC if it is not registered already*/
-        if(!GC_thread_is_registered()) {
-            id = syscall(SYS_gettid);
-            fprintf(stderr,"Found unregisterd thread =  %d \n", id);
+        // pid_t id;
+        // /* Register thread to bohem GC if it is not registered already*/
+        // if(!GC_thread_is_registered()) {
+            // id = syscall(SYS_gettid);
+            // fprintf(stderr,"Found unregisterd thread =  %d \n", id);
 
-            struct GC_stack_base sb;
-            memset (&sb, 0, sizeof(sb));
-            GC_get_stack_base(&sb);
-            GC_register_my_thread (&sb);
-            // std::cerr << "New Theread registerd = " << GC_thread_is_registered() << std::endl;
-        }
-        else {
-            id = syscall(SYS_gettid);
-            if(!knownthreads.count(id)) {
-                fprintf(stderr,"parmod registerd thread =  %d \n", id);
-                knownthreads.insert(id);
-            }
-        }
+            // struct GC_stack_base sb;
+            // memset (&sb, 0, sizeof(sb));
+            // GC_get_stack_base(&sb);
+            // GC_register_my_thread (&sb);
+            // // std::cerr << "New Theread registerd = " << GC_thread_is_registered() << std::endl;
+        // }
+        // else {
+            // id = syscall(SYS_gettid);
+            // if(!knownthreads.count(id)) {
+                // fprintf(stderr,"parmod registerd thread =  %d \n", id);
+                // knownthreads.insert(id);
+            // }
+        // }
 
         for(ClusteIdIter clustid_iter = range.begin(); clustid_iter != range.end(); ++clustid_iter) {
             ClusterIdType& curr_clust_id = *clustid_iter;
@@ -136,7 +136,11 @@ private:
     TBBConcurrentStepExecutor<TaskType> step_executor;
 
     std::set<pid_t> knownthreads;
+
+    int eval_count;
 public:
+
+    std::string name;
 
     PMTimer execution_timer;
 	PMTimer clustering_timer;
@@ -147,11 +151,14 @@ public:
       , tbb_system(4)
       , step_executor(task_system.sys_graph, knownthreads)
     {
+        GC_allow_register_threads();
+        // GC_use_threads_discovery();
+
         profiled = false;
         schedule_valid = false;
-        GC_allow_register_threads();
 
-        // GC_use_threads_discovery();
+        eval_count = 0;
+
     }
 
     void estimate_speedup() {
@@ -174,12 +181,12 @@ public:
             std::sort(current_level.begin(), current_level.end(), cccbi);
             total_level_scheduler_cost += sys_graph[current_level.front()].cost;
 
-            total_system_cost += current_level.level_cost;
+            total_system_cost += current_level.total_level_cost;
         }
 
-        utility::log("") << "total_system_cost: " << total_system_cost << std::endl;
-        utility::log("") << "total_level_scheduler_cost: " << total_level_scheduler_cost << std::endl;
-        utility::log("") << "speedup: " << total_system_cost/total_level_scheduler_cost << std::endl;
+        utility::log("") << "Total_system_cost: " << total_system_cost << std::endl;
+        utility::log("") << "Total_level_scheduler_cost: " << total_level_scheduler_cost << std::endl;
+        utility::log("") << "Ideal speedup: " << total_system_cost/total_level_scheduler_cost << std::endl;
 
     }
 
@@ -192,8 +199,6 @@ public:
 
         if(task_system.levels_valid == false)
             task_system.update_node_levels();
-
-        task_system.dump_graphml("original");
 
         clustetring1::apply(task_system);
 		clustetring1::dump_graph(task_system);
@@ -222,16 +227,18 @@ public:
     void execute()
     {
 
+
+
         if(!this->profiled)
             return profile_execute();
-
-        execution_timer.start_timer();
-        // extra_timer.start_timer();
 
         // GraphType& sys_graph = task_system.sys_graph;
 
         if(task_system.levels_valid == false)
             task_system.update_node_levels();
+
+        execution_timer.start_timer();
+        // extra_timer.start_timer();
 
         typename ClusterLevels::iterator level_iter = task_system.clusters_by_level.begin();
         /*! Skip the first level. Which contains only the root node */
@@ -274,7 +281,6 @@ public:
 
         GraphType& sys_graph = task_system.sys_graph;
 
-        tbb::tick_count t0 = tbb::tick_count::now();
         extra_timer.start_timer();
         typename GraphType::vertex_iterator vert_iter, vert_end;
         boost::tie(vert_iter, vert_end) = vertices(sys_graph);
@@ -284,13 +290,15 @@ public:
             sys_graph[*vert_iter].profile_execute();
         }
         extra_timer.stop_timer();
-        tbb::tick_count t1 = tbb::tick_count::now();
-        printf("work took %g seconds\n",(t1-t0).seconds());
         double step_cost = extra_timer.get_elapsed_time();
-        std::cout << "P: " << step_cost << std::endl;
+        utility::log("") << "Profiling step cost: " << step_cost << std::endl;
         extra_timer.reset_timer();
 
         execution_timer.stop_timer();
+
+        ++this->eval_count;
+        task_system.dump_graphml("profiled");
+
 
 
         this->profiled = true;

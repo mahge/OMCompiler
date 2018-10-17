@@ -102,7 +102,7 @@ public:
     void schedule() {
         task_system.dump_graphml("original");
 		clustering_timer.start_timer();
-        cluster_merge_common::apply(task_system);
+        // cluster_merge_common::apply(task_system);
 		cluster_merge_common::dump_graph(task_system);
         construct_flow_graph();
 		clustering_timer.stop_timer();

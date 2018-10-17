@@ -46,6 +46,7 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/breadth_first_search.hpp>
 #include <boost/graph/graph_utility.hpp>
+#include <boost/graph/graphml.hpp>
 
 #include "pm_utility.hpp"
 #include "pm_timer.hpp"
@@ -55,19 +56,18 @@ namespace openmodelica {
 namespace parmodelica {
 
 
-// struct TaskNode {
-    // TaskNode() :
-    // level(0)
-    // , cost(0)
-    // {};
+struct TaskNode {
+    TaskNode() :
+    level(0)
+    , cost(0)
+    {};
 
-    // long task_id;
-    // int level;
-    // double cost;
+    long task_id;
+    int level;
+    double cost;
 
-    // virtual bool depends_on(const TaskNode&) const = 0;
-    // // virtual void execute() const = 0;
-// };
+    virtual bool depends_on(const TaskNode&) const = 0;
+};
 
 
 
@@ -109,6 +109,7 @@ public:
     void clear_cluster() {
         this->clear();
         this->cost = 0;
+        this->index_list = "$";
     }
 
     bool depends_on(const TaskCluster<TaskType>& other) const {
@@ -198,10 +199,10 @@ struct SameLevelClusterIds :
 {
     typedef T ClusterIdType;
 
-    double level_cost;
+    double total_level_cost;
 
     SameLevelClusterIds() :
-      level_cost(0)
+      total_level_cost(0)
     {}
 
 };
@@ -229,22 +230,25 @@ public:
     typedef typename GraphType::in_edge_iterator in_edge_iterator;
 	typedef typename GraphType::out_edge_iterator out_edge_iterator;
 
-    typedef std::list<SameLevelClusterIds<ClusterIdType> > ClusterLevels;
+    typedef std::vector<SameLevelClusterIds<ClusterIdType> > ClusterLevels;
 
 private:
     long node_count;
 
 public:
+    std::string name;
 
     std::set<ClusterIdType> active_nodes;
     ClusterLevels clusters_by_level;
     bool levels_valid;
     double total_cost;
+
     GraphType sys_graph;
     ClusterIdType root_node_id;
 
-    TaskSystem_v2()
+    TaskSystem_v2(const std::string& in_name)
     {
+        name = in_name;
         levels_valid = false;
         node_count = 0;
         total_cost = 0;
@@ -391,7 +395,7 @@ public:
         typename ClusterLevels::iterator level_iter = clusters_by_level.begin();
         for( ;level_iter != clusters_by_level.end(); ++level_iter, ++level_number) {
             SameLevelClusterIdsType& current_level = *level_iter;
-            std::cout << "Level " << level_number << " : " << current_level.level_cost << " : ";
+            std::cout << "Level " << level_number << " : " << current_level.total_level_cost << " : ";
 
             typename SameLevelClusterIdsType::iterator clustid_iter = current_level.begin();
             for( ;clustid_iter != current_level.end(); ++clustid_iter) {
@@ -419,10 +423,8 @@ public:
 
     void update_node_levels() {
 
-        typedef typename ClusterLevels::value_type SameLevelClusterIdsType;
 
-        clusters_by_level.clear();
-
+        /* compute the level of each node*/
         long critical_path = 0;
         vertex_iterator vert_iter, vert_end;
         boost::tie(vert_iter, vert_end) = vertices(sys_graph);
@@ -448,22 +450,8 @@ public:
 
         }
 
-        clusters_by_level.resize(critical_path + 1);
 
-        typename ClusterLevels::iterator level_iter;
-        boost::tie(vert_iter, vert_end) = vertices(sys_graph);
-        for ( ; vert_iter != vert_end; ++vert_iter) {
-            const ClusterIdType& curr_clust_id = *vert_iter;
-            ClusterType& curr_clust = sys_graph[curr_clust_id];
-
-
-            level_iter = clusters_by_level.begin();
-            std::advance(level_iter, curr_clust.level);
-            level_iter->push_back(curr_clust_id);
-            level_iter->level_cost += curr_clust.cost;
-        }
-
-
+        // Check the levels are correct. Paranoia!
         boost::tie(vert_iter, vert_end) = vertices(sys_graph);
         /*! skip the root node. */
         ++vert_iter;
@@ -495,6 +483,27 @@ public:
         }
 
 
+        // create alist of nodes per level
+        // Collect nodes of the same level in to a vector and add it to the list of levels
+        clusters_by_level.clear();
+        clusters_by_level.resize(critical_path + 1);
+        typedef typename ClusterLevels::value_type SameLevelClusterIdsType;
+
+        typename ClusterLevels::iterator level_iter;
+        boost::tie(vert_iter, vert_end) = vertices(sys_graph);
+        for ( ; vert_iter != vert_end; ++vert_iter) {
+            const ClusterIdType& curr_clust_id = *vert_iter;
+            ClusterType& curr_clust = sys_graph[curr_clust_id];
+
+            // find the entry in the level list for the current node. its level defines where it goes
+            SameLevelClusterIdsType& my_level = clusters_by_level[curr_clust.level];
+            // std::advance(level_iter, curr_clust.level);
+
+            // Add it to the vector of nodes of that level.
+            my_level.push_back(curr_clust_id);
+            my_level.total_level_cost += curr_clust.cost;
+        }
+
 
         this->levels_valid = true;
 
@@ -502,7 +511,35 @@ public:
 
 
     void load_from_xml(const std::string& file_name, const std::string& eq_to_read);
-    void dump_graphml(const std::string& filename);
+
+    void dump_graphml(const std::string& suffix) {
+
+        if(levels_valid == false)
+            update_node_levels();
+
+
+        std::string out_filename = this->name + "_" + suffix + ".graphml";
+        std::ofstream outfileml(out_filename.c_str());
+        boost::dynamic_properties dp;
+        dp.property("index", boost::get(&ClusterType::index_list, sys_graph));
+        dp.property("level", boost::get(&ClusterType::level, sys_graph));
+        dp.property("cost", boost::get(&ClusterType::cost, sys_graph));
+
+
+        /*! Now we have listS as vertex container. listS doesn't have VertexIndexMap
+           created by default. So we create one for it here. */
+        typedef std::map<ClusterIdType, size_t> ClustIndexMap;
+        ClustIndexMap clust_map_index;
+        boost::associative_property_map<ClustIndexMap> clust_prop_map_index(clust_map_index);
+
+        size_t node_count = 0;
+        BGL_FORALL_VERTICES_T(clust_id, sys_graph, GraphType)
+        {
+            boost::put(clust_prop_map_index, clust_id, node_count++);
+        }
+
+        write_graphml(outfileml, sys_graph, clust_prop_map_index, dp, true);
+    }
 
 };
 
