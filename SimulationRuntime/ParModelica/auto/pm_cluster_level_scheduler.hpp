@@ -128,7 +128,10 @@ public:
 
 
 private:
-    TaskSystemType& task_system;
+    TaskSystemType& task_system_org;
+    TaskSystemType task_system;
+
+
     bool profiled;
     bool schedule_valid;
 
@@ -147,7 +150,8 @@ public:
     PMTimer extra_timer;
 
     StepLevels(TaskSystemType& ts) :
-      task_system(ts)
+      task_system_org(ts)
+      , task_system("invalid")  // implement a constrctor with no parameters and remove this
       , tbb_system(4)
       , step_executor(task_system.sys_graph, knownthreads)
     {
@@ -159,6 +163,142 @@ public:
 
         eval_count = 0;
 
+    }
+
+    void clear_schedule() {
+        task_system = task_system_org;
+
+        profiled = false;
+        schedule_valid = false;
+    }
+
+    void execute_and_schedule() {
+        clear_schedule();
+        profile_execute();
+        schedule();
+    }
+
+    void schedule() {
+
+        clustering_timer.start_timer();
+
+        if(task_system.levels_valid == false)
+            task_system.update_node_levels();
+
+        clustetring1::apply(task_system);
+		clustetring1::dump_graph(task_system);
+
+        task_system_org.dump_graphml("after_cluster_1");
+
+
+        clustetring2::apply(task_system);
+		clustetring2::dump_graph(task_system);
+
+        clustetring3::apply(task_system);
+		clustetring3::dump_graph(task_system);
+
+		clustetring4::apply(task_system);
+		clustetring4::dump_graph(task_system);
+
+        clustetring5::apply(task_system);
+		clustetring5::dump_graph(task_system);
+
+        schedule_valid = true;
+        task_system.levels_valid = false;
+        task_system.update_node_levels();
+
+        estimate_speedup();
+		clustering_timer.stop_timer();
+
+
+        task_system_org.dump_graphml("original");
+
+
+    }
+
+
+    void execute()
+    {
+
+        if(!this->schedule_valid)
+            return execute_and_schedule();
+
+        if(task_system.levels_valid == false)
+            exit(1);
+
+        execution_timer.start_timer();
+        extra_timer.start_timer();
+
+        typename ClusterLevels::iterator level_iter = task_system.clusters_by_level.begin();
+        /*! Skip the first level. Which contains only the root node */
+        ++level_iter;
+        int level_number = 1;
+        for( ;level_iter != task_system.clusters_by_level.end(); ++level_iter, ++level_number) {
+            SameLevelClusterIdsType& current_level = *level_iter;
+
+            // if(current_level.level_cost > 0.009) {
+                tbb::parallel_for(
+                    tbb::blocked_range<typename SameLevelClusterIdsType::iterator>(
+                    current_level.begin(), current_level.end())
+                    , step_executor);
+            // }
+            // else {
+                // typename SameLevelClusterIdsType::iterator clustid_iter = current_level.begin();
+                // for( ;clustid_iter != current_level.end(); ++clustid_iter) {
+                    // ClusterIdType& curr_clust_id = *clustid_iter;
+                    // ClusterType& curr_clust = sys_graph[curr_clust_id];
+
+                    // curr_clust.execute();
+
+                // }
+            // }
+        }
+
+        ++this->eval_count;
+
+        execution_timer.stop_timer();
+        extra_timer.stop_timer();
+
+        // if(eval_count%100 == 0) {
+            double step_cost = extra_timer.get_elapsed_time();
+            std::cout << eval_count << ": " << step_cost*1000 << std::endl;
+            extra_timer.reset_timer();
+        // }
+
+
+
+    }
+
+
+    void profile_execute()
+    {
+
+        GraphType& sys_graph = task_system.sys_graph;
+
+        typename GraphType::vertex_iterator vert_iter, vert_end;
+        boost::tie(vert_iter, vert_end) = vertices(sys_graph);
+
+        execution_timer.start_timer();
+        extra_timer.start_timer();
+        /*! skip the root node. */
+        ++vert_iter;
+        for ( ; vert_iter != vert_end; ++vert_iter) {
+            sys_graph[*vert_iter].profile_execute();
+        }
+        ++this->eval_count;
+
+        extra_timer.stop_timer();
+        execution_timer.stop_timer();
+
+        double step_cost = extra_timer.get_elapsed_time();
+        utility::log("") << "Profiled on step :" << this->eval_count << " cost: " << step_cost*1000 << std::endl;
+        extra_timer.reset_timer();
+
+
+        task_system.dump_graphml("profiled_" + std::to_string(this->eval_count));
+        task_system_org.dump_graphml("after_profile");
+
+        this->profiled = true;
     }
 
     void estimate_speedup() {
@@ -187,123 +327,6 @@ public:
         utility::log("") << "Total_system_cost: " << total_system_cost << std::endl;
         utility::log("") << "Total_level_scheduler_cost: " << total_level_scheduler_cost << std::endl;
         utility::log("") << "Ideal speedup: " << total_system_cost/total_level_scheduler_cost << std::endl;
-
-    }
-
-    void schedule() {
-
-        if(schedule_valid)
-            return;
-
-        clustering_timer.start_timer();
-
-        if(task_system.levels_valid == false)
-            task_system.update_node_levels();
-
-        clustetring1::apply(task_system);
-		clustetring1::dump_graph(task_system);
-
-        clustetring2::apply(task_system);
-		clustetring2::dump_graph(task_system);
-
-        clustetring3::apply(task_system);
-		clustetring3::dump_graph(task_system);
-
-		clustetring4::apply(task_system);
-		clustetring4::dump_graph(task_system);
-
-        clustetring5::apply(task_system);
-		clustetring5::dump_graph(task_system);
-
-        schedule_valid = true;
-        task_system.levels_valid = false;
-
-        estimate_speedup();
-		clustering_timer.stop_timer();
-
-    }
-
-
-    void execute()
-    {
-
-
-
-        if(!this->profiled)
-            return profile_execute();
-
-        // GraphType& sys_graph = task_system.sys_graph;
-
-        if(task_system.levels_valid == false)
-            task_system.update_node_levels();
-
-        execution_timer.start_timer();
-        // extra_timer.start_timer();
-
-        typename ClusterLevels::iterator level_iter = task_system.clusters_by_level.begin();
-        /*! Skip the first level. Which contains only the root node */
-        ++level_iter;
-        int level_number = 1;
-        for( ;level_iter != task_system.clusters_by_level.end(); ++level_iter, ++level_number) {
-            SameLevelClusterIdsType& current_level = *level_iter;
-
-            // if(current_level.level_cost > 0.009) {
-                tbb::parallel_for(
-                    tbb::blocked_range<typename SameLevelClusterIdsType::iterator>(
-                    current_level.begin(), current_level.end())
-                    , step_executor);
-            // }
-            // else {
-                // typename SameLevelClusterIdsType::iterator clustid_iter = current_level.begin();
-                // for( ;clustid_iter != current_level.end(); ++clustid_iter) {
-                    // ClusterIdType& curr_clust_id = *clustid_iter;
-                    // ClusterType& curr_clust = sys_graph[curr_clust_id];
-
-                    // curr_clust.execute();
-
-                // }
-            // }
-        }
-
-        execution_timer.stop_timer();
-        // extra_timer.stop_timer();
-        // double step_cost = extra_timer.get_elapsed_time();
-        // std::cout << "E: " << step_cost << std::endl;
-        // extra_timer.reset_timer();
-
-    }
-
-
-    void profile_execute()
-    {
-        execution_timer.start_timer();
-
-
-        GraphType& sys_graph = task_system.sys_graph;
-
-        extra_timer.start_timer();
-        typename GraphType::vertex_iterator vert_iter, vert_end;
-        boost::tie(vert_iter, vert_end) = vertices(sys_graph);
-        /*! skip the root node. */
-        ++vert_iter;
-        for ( ; vert_iter != vert_end; ++vert_iter) {
-            sys_graph[*vert_iter].profile_execute();
-        }
-        extra_timer.stop_timer();
-        double step_cost = extra_timer.get_elapsed_time();
-        utility::log("") << "Profiling step cost: " << step_cost << std::endl;
-        extra_timer.reset_timer();
-
-        execution_timer.stop_timer();
-
-        ++this->eval_count;
-        task_system.dump_graphml("profiled");
-
-
-
-        this->profiled = true;
-        this->schedule_valid = false;
-        schedule();
 
     }
 

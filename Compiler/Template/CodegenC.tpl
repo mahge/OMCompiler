@@ -187,6 +187,8 @@ end translateModel;
 
     <%if Flags.isSet(Flags.PARMODAUTO) then "#include \"ParModelica/auto/om_pm_interface.hpp\""%>
 
+    #include "ParModelica/auto/om_pm_interface.hpp"
+
     <%if stringEq(getConfigString(HPCOM_CODE),"pthreads_spin") then "#include \"util/omc_spinlock.h\""%>
 
     <%if Flags.isSet(HPCOM) then "#define HPCOM"%>

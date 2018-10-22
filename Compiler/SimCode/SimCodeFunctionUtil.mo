@@ -2510,7 +2510,7 @@ algorithm
   // If we are on windows Remove omcgc from linked libraries since it is linked to tbb.dll. Otherwise we have two copies of GC_* global variables on windows.
   // This includes (among many things) the array of thread ids known to GC. That means threads created by tbb.dll are not visible to
   // the model executable since it has its own thread table from its own libomcgc. Sigh!!!!!!
-  if(Flags.isSet(Flags.PARMODAUTO)) then
+  // if(Flags.isSet(Flags.PARMODAUTO)) then
     if (stringEq(platform,"win32") or stringEq(platform,"win64")) then
       ldflags := System.stringReplace(ldflags, " -lomcgc", "");
       rtlibs := System.stringReplace(rtlibs, " -lomcgc", "");
@@ -2518,7 +2518,7 @@ algorithm
     else
       rtlibs := " -lParModelicaAuto -ltbb -lboost_system" + rtlibs;
     end if;
-  end if;
+  // end if;
 
   compileDir :=  System.pwd() + System.pathDelimiter();
   makefileParams := SimCodeFunction.MAKEFILE_PARAMS(ccompiler, cxxcompiler, linker, exeext, dllext,

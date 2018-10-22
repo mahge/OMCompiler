@@ -46,6 +46,7 @@ extern "C" {
 using namespace openmodelica::parmodelica;
 typedef Equation::FunctionType FunctionType;
 
+PMTimer seq_ode_timer;
 
 
 void* PM_Model_create(const char* model_name, DATA* data, threadData_t* threadData) {
@@ -110,6 +111,27 @@ void PM_evaluate_ODE_system(void* v_model) {
     // pm_om_model.ALG_scheduler.execution_timer.start_timer();
 
 // }
+
+void seq_ode_timer_start() {
+    seq_ode_timer.start_timer();
+}
+
+void seq_ode_timer_stop() {
+    seq_ode_timer.stop_timer();
+}
+
+void seq_ode_timer_reset() {
+    seq_ode_timer.reset_timer();
+}
+
+void seq_ode_timer_get_elapsed_time2() {
+    // return seq_ode_timer.get_elapsed_time();
+    std::cerr << seq_ode_timer.get_elapsed_time();
+}
+
+double seq_ode_timer_get_elapsed_time() {
+    return seq_ode_timer.get_elapsed_time();
+}
 
 void dump_times(void* v_model) {
     OMModel& model = *(static_cast<OMModel*>(v_model));

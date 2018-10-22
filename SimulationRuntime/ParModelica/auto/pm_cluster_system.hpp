@@ -67,6 +67,7 @@ struct TaskNode {
     double cost;
 
     virtual bool depends_on(const TaskNode&) const = 0;
+    virtual void execute() = 0;
 };
 
 
@@ -127,8 +128,7 @@ public:
     }
 
 
-    void execute()
-    {
+    void execute() {
         iterator t_iter;
         for(t_iter = this->begin(); t_iter != this->end(); ++t_iter) {
             t_iter->execute();
@@ -210,7 +210,7 @@ struct SameLevelClusterIds :
 
 
 template <typename T>
-class TaskSystem_v2 : boost::noncopyable {
+class TaskSystem_v2 {
 
 public:
     typedef T TaskType;
@@ -238,7 +238,6 @@ private:
 public:
     std::string name;
 
-    std::set<ClusterIdType> active_nodes;
     ClusterLevels clusters_by_level;
     bool levels_valid;
     double total_cost;
@@ -252,15 +251,54 @@ public:
         levels_valid = false;
         node_count = 0;
         total_cost = 0;
+
+        // add a new cluster for root node.
         root_node_id = boost::add_vertex(sys_graph);
+        // add an empty task to the root node.
         TaskType& root_node = sys_graph[root_node_id].add_task(TaskType());
         root_node.task_id = -1;
+    }
+
+    TaskSystem_v2(const TaskSystem_v2& other)
+    {
+        this->name = other.name;
+        this->node_count = other.node_count;
+
+        this->clusters_by_level = other.clusters_by_level;
+
+        this->levels_valid = other.levels_valid;
+        this->total_cost = other.total_cost;
+
+        this->sys_graph = other.sys_graph;
+        this->root_node_id = other.root_node_id;
+    }
+
+    TaskSystem_v2& operator=(const TaskSystem_v2& other) {
+        TaskSystem_v2 tmp(other);
+        this->swap(tmp);
+        return *this;
+    }
+
+    void swap(TaskSystem_v2& other) {
+        if(this == &other)
+            return;
+
+        std::swap(this->name, other.name);
+        std::swap(this->node_count, other.node_count);
+
+        std::swap(this->clusters_by_level, other.clusters_by_level);
+
+        std::swap(this->levels_valid, other.levels_valid);
+        std::swap(this->total_cost, other.total_cost);
+
+        std::swap(this->sys_graph, other.sys_graph);
+        std::swap(this->root_node_id, other.root_node_id);
+
     }
 
     TaskType& add_node(const TaskType& task)
     {
         ClusterIdType new_clust_id = boost::add_vertex(sys_graph);
-        active_nodes.insert(new_clust_id);
 
         ClusterType& new_clust = sys_graph[new_clust_id];
 

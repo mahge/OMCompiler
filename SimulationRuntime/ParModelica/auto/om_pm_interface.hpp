@@ -60,6 +60,18 @@ void PM_evaluate_ODE_system(void*);
 
 // void PM_functionAlg(int size, DATA* data, threadData_t* threadData, FunctionType*);
 
+
+void seq_ode_timer_start();
+
+void seq_ode_timer_stop();
+
+void seq_ode_timer_reset();
+
+void seq_ode_timer_get_elapsed_time2();
+
+double seq_ode_timer_get_elapsed_time();
+
+
 void dump_times(void*);
 
 
