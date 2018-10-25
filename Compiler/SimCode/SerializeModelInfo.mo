@@ -271,6 +271,8 @@ protected
   Integer i;
   list<DAE.SymbolicOperation> operations;
 algorithm
+  File.write(file,"{}");
+  /*
   DAE.SOURCE(typeLst=typeLst,info=info,instance=instance,partOfLst=partOfLst,operations=operations) := source;
   File.write(file,"{\"info\":");
   serializeInfo(file,info);
@@ -307,6 +309,7 @@ algorithm
   else
     File.write(file,"}");
   end if;
+  */
 end serializeSource;
 
 function serializeInfo

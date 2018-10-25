@@ -613,5 +613,11 @@ algorithm
   outBoolean := Flags.getConfigBool(Flags.IGNORE_COMMAND_LINE_OPTIONS_ANNOTATION);
 end ignoreCommandLineOptionsAnnotation;
 
+public function getParmodeautoValue
+  output String b;
+algorithm
+  b := Flags.getConfigString(Flags.PARMODAUTO_SCHEDULER);
+end getParmodeautoValue;
+
 annotation(__OpenModelica_Interface="util");
 end Config;

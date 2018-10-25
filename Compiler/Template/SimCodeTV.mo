@@ -3334,6 +3334,10 @@ package Config
   function typeinfo
     output Boolean flag;
   end typeinfo;
+
+  function getParmodeautoValue
+    output String b;
+  end getParmodeautoValue;
 end Config;
 
 package Flags

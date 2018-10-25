@@ -1343,6 +1343,13 @@ constant ConfigFlag GRAPHICS_EXP_MODE = CONFIG_FLAG(112,
   "graphicsExpMode", NONE(), INTERNAL(), BOOL_FLAG(false), NONE(),
   Util.gettext("Sets whether we are in graphics exp mode (evaluating icons)."));
 
+constant ConfigFlag PARMODAUTO_SCHEDULER = CONFIG_FLAG(113, "pm_scheduler",
+  NONE(), EXTERNAL(), STRING_FLAG("level"), SOME(STRING_DESC_OPTION({
+    ("level",Util.gettext("Use the level scheduler.")),
+    ("flow",Util.gettext("Use the flow scheduler."))
+    })),
+  Util.gettext("Experimental: Select the scheduler to use with parmodauto."));
+
 protected
 // This is a list of all configuration flags. A flag can not be used unless it's
 // in this list, and the list is checked at initialization so that all flags are
@@ -1459,7 +1466,8 @@ constant list<ConfigFlag> allConfigFlags = {
   REPLACE_EVALUATED_PARAMS,
   CONDENSE_ARRAYS,
   WFC_ADVANCED,
-  GRAPHICS_EXP_MODE
+  GRAPHICS_EXP_MODE,
+  PARMODAUTO_SCHEDULER
 };
 
 public function new

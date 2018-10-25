@@ -138,8 +138,17 @@ void dump_times(void* v_model) {
 
     utility::log("") << "Total INI: " << model.INI_scheduler.execution_timer.get_elapsed_time() << std::endl;
     utility::log("") << "Total DAE: " << model.DAE_scheduler.execution_timer.get_elapsed_time() << std::endl;
-    utility::log("") << "Total ODE: " << model.ODE_scheduler.execution_timer.get_elapsed_time() << std::endl;
     utility::log("") << "Total ALG: " << model.ALG_scheduler.execution_timer.get_elapsed_time() << std::endl;
+
+    // double total = 0;
+    // for(unsigned int i = 0; i < model.ODE_scheduler.parallel_eval_costs.size(); ++i) {
+        // double c = model.ODE_scheduler.parallel_eval_costs[i];
+        // total += c;
+        // utility::log("") << i+1 << ": " << c << " : " << total/(i+1) << std::endl;
+    // }
+
+    // utility::log("") << "Total ODE added: " << total << std::endl;
+    utility::log("") << "Total ODE: " << model.ODE_scheduler.execution_timer.get_elapsed_time() << std::endl;
     utility::log("") << "Total ODE loading: " << model.load_system_timer.get_elapsed_time() << std::endl;
     utility::log("") << "Total ODE Clustering: " << model.ODE_scheduler.clustering_timer.get_elapsed_time() << std::endl;
 }

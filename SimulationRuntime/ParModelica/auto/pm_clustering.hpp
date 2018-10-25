@@ -287,7 +287,7 @@ struct cluster_merge_level_for_cost {
         ClusterLevels& clusters_by_level = task_system.clusters_by_level;
         GraphType& sys_graph = task_system.sys_graph;
 
-        int nr_of_clusters = 4;
+        int nr_of_clusters = 8;
 
         if(task_system.levels_valid == false)
             task_system.update_node_levels();

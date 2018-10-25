@@ -42,8 +42,11 @@
 
 
 #include <iostream>
+#include <map>
 
 #include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/copy.hpp>
+
 #include <boost/graph/breadth_first_search.hpp>
 #include <boost/graph/graph_utility.hpp>
 #include <boost/graph/graphml.hpp>
@@ -270,30 +273,42 @@ public:
         this->total_cost = other.total_cost;
 
         this->sys_graph = other.sys_graph;
-        this->root_node_id = other.root_node_id;
+        // typedef std::map<ClusterIdType, size_t> IndexMap;
+        // IndexMap mapIndex;
+        // boost::associative_property_map<IndexMap> propmapIndex(mapIndex);
+
+        // int i=0;
+        // BGL_FORALL_VERTICES_T(v, other.sys_graph, GraphType)
+        // {
+            // boost::put(propmapIndex, v, i++);
+        // }
+        // boost::copy_graph(other.sys_graph,this->sys_graph, boost::vertex_index_map( propmapIndex ));
+        // for (typename IndexMap::iterator p = mapIndex.begin(); p != mapIndex.end(); ++p) {
+            // std::cout << p->first << " -> " << p->second << std::endl;
+        // }
+
+        vertex_iterator vert_iter, vert_end;
+        boost::tie(vert_iter, vert_end) = vertices(this->sys_graph);
+        this->root_node_id = *vert_iter;
     }
 
     TaskSystem_v2& operator=(const TaskSystem_v2& other) {
-        TaskSystem_v2 tmp(other);
-        this->swap(tmp);
+
+        this->name = other.name;
+        this->node_count = other.node_count;
+
+        this->clusters_by_level = other.clusters_by_level;
+
+        this->levels_valid = other.levels_valid;
+        this->total_cost = other.total_cost;
+
+        this->sys_graph = other.sys_graph;
+
+        vertex_iterator vert_iter, vert_end;
+        boost::tie(vert_iter, vert_end) = vertices(this->sys_graph);
+        this->root_node_id = *vert_iter;
+
         return *this;
-    }
-
-    void swap(TaskSystem_v2& other) {
-        if(this == &other)
-            return;
-
-        std::swap(this->name, other.name);
-        std::swap(this->node_count, other.node_count);
-
-        std::swap(this->clusters_by_level, other.clusters_by_level);
-
-        std::swap(this->levels_valid, other.levels_valid);
-        std::swap(this->total_cost, other.total_cost);
-
-        std::swap(this->sys_graph, other.sys_graph);
-        std::swap(this->root_node_id, other.root_node_id);
-
     }
 
     TaskType& add_node(const TaskType& task)

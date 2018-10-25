@@ -133,21 +133,30 @@ private:
 
 
     bool profiled;
-    bool schedule_valid;
+    bool schedule_available;
 
     tbb::task_scheduler_init tbb_system;
     TBBConcurrentStepExecutor<TaskType> step_executor;
 
     std::set<pid_t> knownthreads;
 
-    int eval_count;
+    int total_evaluations;
+    int parallel_evaluations;
+
+    double par_avg_at_last_sch;
+    double par_current_avg;
+    double total_parallel_cost;
+    bool has_run_parallel;
 public:
 
     std::string name;
 
     PMTimer execution_timer;
 	PMTimer clustering_timer;
-    PMTimer extra_timer;
+    PMTimer step_timer;
+
+    std::vector<double> parallel_eval_costs;
+
 
     StepLevels(TaskSystemType& ts) :
       task_system_org(ts)
@@ -159,17 +168,48 @@ public:
         // GC_use_threads_discovery();
 
         profiled = false;
-        schedule_valid = false;
+        schedule_available = false;
 
-        eval_count = 0;
+        total_evaluations = 0;
+        parallel_evaluations = 0;
 
+        total_parallel_cost = 0;
+        par_avg_at_last_sch = 0;
+        has_run_parallel = false;
+
+    }
+
+    bool avg_needs_reschedule() {
+
+        double diff = std::abs(par_avg_at_last_sch - par_current_avg);
+        double change = diff/par_avg_at_last_sch;
+
+        if(change > 0.5) {
+            std::cout << "Reschedule needed P: " << par_avg_at_last_sch << " :C: " << par_current_avg << std::endl;
+            par_avg_at_last_sch = par_current_avg;
+            return true;
+        }
+
+        return false;
+    }
+
+    bool reschedule_needed() {
+        if(!this->schedule_available)
+            return true;
+
+
+        if(this->avg_needs_reschedule())
+            return true;
+
+        return false;
     }
 
     void clear_schedule() {
         task_system = task_system_org;
 
         profiled = false;
-        schedule_valid = false;
+        schedule_available = false;
+
     }
 
     void execute_and_schedule() {
@@ -185,11 +225,8 @@ public:
         if(task_system.levels_valid == false)
             task_system.update_node_levels();
 
-        clustetring1::apply(task_system);
-		clustetring1::dump_graph(task_system);
-
-        task_system_org.dump_graphml("after_cluster_1");
-
+        // clustetring1::apply(task_system);
+		// clustetring1::dump_graph(task_system);
 
         clustetring2::apply(task_system);
 		clustetring2::dump_graph(task_system);
@@ -203,7 +240,7 @@ public:
         clustetring5::apply(task_system);
 		clustetring5::dump_graph(task_system);
 
-        schedule_valid = true;
+        schedule_available = true;
         task_system.levels_valid = false;
         task_system.update_node_levels();
 
@@ -220,14 +257,15 @@ public:
     void execute()
     {
 
-        if(!this->schedule_valid)
+        if(this->reschedule_needed())
             return execute_and_schedule();
 
+        // paranoia
         if(task_system.levels_valid == false)
             exit(1);
 
         execution_timer.start_timer();
-        extra_timer.start_timer();
+        step_timer.start_timer();
 
         typename ClusterLevels::iterator level_iter = task_system.clusters_by_level.begin();
         /*! Skip the first level. Which contains only the root node */
@@ -254,18 +292,30 @@ public:
             // }
         }
 
-        ++this->eval_count;
-
         execution_timer.stop_timer();
-        extra_timer.stop_timer();
+        step_timer.stop_timer();
 
-        // if(eval_count%100 == 0) {
-            double step_cost = extra_timer.get_elapsed_time();
-            std::cout << eval_count << ": " << step_cost*1000 << std::endl;
-            extra_timer.reset_timer();
+        ++this->total_evaluations;
+        ++this->parallel_evaluations;
+
+
+
+
+
+        // if(total_evaluations%100 == 0) {
+            double step_cost = step_timer.get_elapsed_time();
+            parallel_eval_costs.push_back(step_cost);
+            total_parallel_cost += step_cost;
+            par_current_avg = total_parallel_cost/this->parallel_evaluations;
+            // std::cout << total_evaluations << " : " << parallel_evaluations << " : " << step_cost << " : " << par_current_avg << std::endl;
+            std::cout << total_evaluations << " : " << step_cost << std::endl;
+            step_timer.reset_timer();
         // }
 
-
+        if(!has_run_parallel) {
+            par_avg_at_last_sch = par_current_avg;
+            has_run_parallel = true;
+        }
 
     }
 
@@ -279,24 +329,24 @@ public:
         boost::tie(vert_iter, vert_end) = vertices(sys_graph);
 
         execution_timer.start_timer();
-        extra_timer.start_timer();
+        step_timer.start_timer();
         /*! skip the root node. */
         ++vert_iter;
         for ( ; vert_iter != vert_end; ++vert_iter) {
             sys_graph[*vert_iter].profile_execute();
         }
-        ++this->eval_count;
+        ++this->total_evaluations;
 
-        extra_timer.stop_timer();
+        step_timer.stop_timer();
         execution_timer.stop_timer();
 
-        double step_cost = extra_timer.get_elapsed_time();
-        utility::log("") << "Profiled on step :" << this->eval_count << " cost: " << step_cost*1000 << std::endl;
-        extra_timer.reset_timer();
+        double step_cost = step_timer.get_elapsed_time();
+        // utility::log("") << "Profiled on step :" << this->total_evaluations << " cost: " << step_cost << std::endl;
+        std::cout << this->total_evaluations << " : " << step_cost << " : P" << std::endl;
+        step_timer.reset_timer();
 
 
-        task_system.dump_graphml("profiled_" + std::to_string(this->eval_count));
-        task_system_org.dump_graphml("after_profile");
+        task_system.dump_graphml("profiled_" + std::to_string(this->total_evaluations));
 
         this->profiled = true;
     }

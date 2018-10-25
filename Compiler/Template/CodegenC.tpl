@@ -1033,6 +1033,7 @@ template simulationFile(SimCode simCode, String guid, Boolean isModelExchangeFMU
       <%symbolName(modelNamePrefixStr,"setupDataStruc")%>(&data, threadData);
       <%pminit%>
       res = _main_SimulationRuntime(argc, argv, &data, threadData);
+      fprintf(stderr, "total %f",seq_ode_timer_get_elapsed_time());
       >>
     <<
     /* Main Simulation File */
@@ -3960,8 +3961,19 @@ template functionODE(list<list<SimEqSystem>> derivativEquations, Text method, Op
     data->simulationInfo->callStatistics.functionODE++;
 
     <%symbolName(modelNamePrefix,"functionLocalKnownVars")%>(data, threadData);
-    <%if Flags.isSet(Flags.PARMODAUTO) then 'PM_evaluate_ODE_system(pm_model);'
-    else fncalls %>
+
+    <%if Flags.isSet(Flags.PARMODAUTO) then
+    <<
+    PM_evaluate_ODE_system(pm_model);
+    >>
+    else <<
+    seq_ode_timer_start();
+    <%fncalls%>
+    seq_ode_timer_stop();
+    fprintf(stderr,"%d : %f\n",data->simulationInfo->callStatistics.functionODE, seq_ode_timer_get_elapsed_time());
+    seq_ode_timer_reset();
+    >>
+    %>
 
     <% if profileFunctions() then "rt_accumulate(SIM_TIMER_FUNCTION_ODE);" %>
 
