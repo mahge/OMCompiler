@@ -68,7 +68,7 @@ template<typename TaskType>
 class ClusterDynamicScheduler {
 public:
     typedef TaskSystem_v2<TaskType> TaskSystemType;
-    
+
     typedef typename TaskSystemType::GraphType GraphType;
     typedef typename TaskSystemType::ClusterType ClusterType;
     typedef typename TaskSystemType::ClusterIdType ClusterIdType;
@@ -82,30 +82,30 @@ private:
     tbb::flow::broadcast_node<tbb::flow::continue_msg> flow_root;
 
     bool flow_graph_created;
-    
-    
+
+
     std::map<ClusterIdType, tbb::flow::continue_node<tbb::flow::continue_msg>* > cluster_flow_id_map;
 
 public:
     PMTimer execution_timer;
-	PMTimer clustering_timer;
+    PMTimer clustering_timer;
     TaskSystemType& task_system;
 
     ClusterDynamicScheduler(TaskSystemType& task_system)
-        : tbb_system()
+        : tbb_system(2)
         , flow_root(dynamic_graph)
         , flow_graph_created(false)
         , task_system(task_system)
     {
     }
-    
+
     void schedule() {
-        task_system.dump_graphml("original");
-		clustering_timer.start_timer();
+        // task_system.dump_graphml("original");
+        clustering_timer.start_timer();
         // cluster_merge_common::apply(task_system);
-		cluster_merge_common::dump_graph(task_system);
+        // cluster_merge_common::dump_graph(task_system);
         construct_flow_graph();
-		clustering_timer.stop_timer();
+        clustering_timer.stop_timer();
     }
 
     void construct_flow_graph()
@@ -157,7 +157,7 @@ public:
 
 
     void execute() {
-        
+
         if(!flow_graph_created) {
             schedule();
         }

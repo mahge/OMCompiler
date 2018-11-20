@@ -326,7 +326,7 @@ inline void check_container_dispaly(int index, const std::string& disp) {
 
 void OMModel::load_from_json(TaskSystemT& task_system, const std::string& eq_to_read, FunctionType* function_system) {
     std::string json_file = this->name + "_ode.json";
-    utility::log("") << "Loading " << json_file << std::endl;
+    // utility::log("") << "Loading " << json_file << std::endl;
 
     std::set<std::string> complex_eq_lhs;
     std::set<std::string> complex_eq_rhs;
@@ -439,7 +439,7 @@ void OMModel::load_from_json(TaskSystemT& task_system, const std::string& eq_to_
         }
     }
 
-    std::cout << "Number of tasks      = " << node_count << newl;
+    // std::cout << "Number of tasks      = " << node_count << newl;
 
 }
 

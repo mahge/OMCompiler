@@ -109,7 +109,7 @@ public:
 
 template<typename TaskType,
          typename clustetring1 = cluster_merge_common, /* for now default here*/
-         typename clustetring2 = cluster_merge_level_for_cost, /* for now default here*/
+         typename clustetring2 = cluster_merge_level_for_bins, /* for now default here*/
          typename clustetring3 = cluster_none,
          typename clustetring4 = cluster_none,
          typename clustetring5 = cluster_none
@@ -127,8 +127,8 @@ public:
     typedef typename ClusterLevels::value_type SameLevelClusterIdsType;
 
 
-private:
-    TaskSystemType& task_system_org;
+public:
+    const TaskSystemType& task_system_org;
     TaskSystemType task_system;
 
 
@@ -142,6 +142,7 @@ private:
 
     int total_evaluations;
     int parallel_evaluations;
+    int sequential_evaluations;
 
     double par_avg_at_last_sch;
     double par_current_avg;
@@ -161,7 +162,7 @@ public:
     StepLevels(TaskSystemType& ts) :
       task_system_org(ts)
       , task_system("invalid")  // implement a constrctor with no parameters and remove this
-      , tbb_system(4)
+      , tbb_system(2)
       , step_executor(task_system.sys_graph, knownthreads)
     {
         GC_allow_register_threads();
@@ -172,6 +173,7 @@ public:
 
         total_evaluations = 0;
         parallel_evaluations = 0;
+        sequential_evaluations = 0;
 
         total_parallel_cost = 0;
         par_avg_at_last_sch = 0;
@@ -185,8 +187,7 @@ public:
         double change = diff/par_avg_at_last_sch;
 
         if(change > 0.5) {
-            std::cout << "Reschedule needed P: " << par_avg_at_last_sch << " :C: " << par_current_avg << std::endl;
-            par_avg_at_last_sch = par_current_avg;
+            // std::cout << "Reschedule needed P: " << par_avg_at_last_sch << " :C: " << par_current_avg << std::endl;
             return true;
         }
 
@@ -216,6 +217,7 @@ public:
         clear_schedule();
         profile_execute();
         schedule();
+        par_avg_at_last_sch = par_current_avg;
     }
 
     void schedule() {
@@ -225,11 +227,11 @@ public:
         if(task_system.levels_valid == false)
             task_system.update_node_levels();
 
-        // clustetring1::apply(task_system);
-		// clustetring1::dump_graph(task_system);
+        clustetring1::apply(task_system);
+		clustetring1::dump_graph(task_system, std::to_string(this->total_evaluations));
 
-        clustetring2::apply(task_system);
-		clustetring2::dump_graph(task_system);
+        // clustetring2::apply(task_system);
+		// clustetring2::dump_graph(task_system, std::to_string(this->total_evaluations));
 
         clustetring3::apply(task_system);
 		clustetring3::dump_graph(task_system);
@@ -248,7 +250,7 @@ public:
 		clustering_timer.stop_timer();
 
 
-        task_system_org.dump_graphml("original");
+        // task_system_org.dump_graphml("original");
 
 
     }
@@ -299,16 +301,13 @@ public:
         ++this->parallel_evaluations;
 
 
-
-
-
         // if(total_evaluations%100 == 0) {
             double step_cost = step_timer.get_elapsed_time();
             parallel_eval_costs.push_back(step_cost);
             total_parallel_cost += step_cost;
             par_current_avg = total_parallel_cost/this->parallel_evaluations;
             // std::cout << total_evaluations << " : " << parallel_evaluations << " : " << step_cost << " : " << par_current_avg << std::endl;
-            std::cout << total_evaluations << " : " << step_cost << std::endl;
+            // std::cout << "P" <<  " : " << total_evaluations << " : " << step_cost << " : "<< par_current_avg << std::endl;
             step_timer.reset_timer();
         // }
 
@@ -323,6 +322,9 @@ public:
     void profile_execute()
     {
 
+        // if(this->total_evaluations == 0)
+            // std::cout << "Type" <<  " : " << "Eval" << " : " << "Eval_cost" << " : "<< "Curr_Par_Avg" << " : " << "Prev_Sch_Avg"<< std::endl;
+
         GraphType& sys_graph = task_system.sys_graph;
 
         typename GraphType::vertex_iterator vert_iter, vert_end;
@@ -336,13 +338,14 @@ public:
             sys_graph[*vert_iter].profile_execute();
         }
         ++this->total_evaluations;
+        ++this->sequential_evaluations;
 
         step_timer.stop_timer();
         execution_timer.stop_timer();
 
         double step_cost = step_timer.get_elapsed_time();
         // utility::log("") << "Profiled on step :" << this->total_evaluations << " cost: " << step_cost << std::endl;
-        std::cout << this->total_evaluations << " : " << step_cost << " : P" << std::endl;
+        // std::cout << "S" <<  " : " << this->total_evaluations << " : " << step_cost << " : " << par_current_avg << " : " << par_avg_at_last_sch << std::endl;
         step_timer.reset_timer();
 
 
@@ -368,15 +371,16 @@ public:
             SameLevelClusterIdsType& current_level = *level_iter;
 
             cluster_cost_comparator_by_id<GraphType> cccbi(sys_graph);
-            std::sort(current_level.begin(), current_level.end(), cccbi);
+            // sort in decreasing order
+            std::sort(current_level.rbegin(), current_level.rend(), cccbi);
             total_level_scheduler_cost += sys_graph[current_level.front()].cost;
 
             total_system_cost += current_level.total_level_cost;
         }
 
-        utility::log("") << "Total_system_cost: " << total_system_cost << std::endl;
-        utility::log("") << "Total_level_scheduler_cost: " << total_level_scheduler_cost << std::endl;
-        utility::log("") << "Ideal speedup: " << total_system_cost/total_level_scheduler_cost << std::endl;
+        // utility::log("") << "Total_system_cost: " << total_system_cost << std::endl;
+        // utility::log("") << "Total_level_scheduler_cost: " << total_level_scheduler_cost << std::endl;
+        // utility::log("") << "Ideal speedup: " << total_system_cost/total_level_scheduler_cost << std::endl;
 
     }
 
@@ -387,13 +391,13 @@ public:
 //template<typename Tasktype>
 //using LevelScheduler = StepLevels<TaskType
                                     // , cluster_merge_common
-                                    // , cluster_merge_level_for_cost
+                                    // , cluster_merge_level_for_bins
                                    // >;
 
 template<typename TaskType>
 struct LevelScheduler : StepLevels<TaskType
                                     , cluster_merge_common
-                                    , cluster_merge_level_for_cost
+                                    , cluster_merge_level_for_bins
                                   > {};
 
 

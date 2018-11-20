@@ -122,6 +122,9 @@ public:
     typedef typename std::vector<T>::iterator iterator;
     typedef typename std::vector<T>::const_iterator const_iterator;
 
+    typedef typename std::vector<T>::reverse_iterator reverse_iterator;
+    typedef typename std::vector<T>::const_reverse_iterator const_reverse_iterator;
+
     typedef typename std::vector<T>::reference reference;
     typedef typename std::vector<T>::const_reference const_reference;
 
@@ -140,6 +143,12 @@ public:
 
     iterator                                end() { return int_vector.end(); }
     const_iterator                          end() const { return int_vector.end(); }
+
+    reverse_iterator                        rbegin() { return int_vector.rbegin(); }
+    const_reverse_iterator                  rbegin() const { return int_vector.rbegin(); }
+
+    reverse_iterator                        rend() { return int_vector.rend(); }
+    const_reverse_iterator                  rend() const { return int_vector.rend(); }
 
     void                                    push_back(const_reference p) { int_vector.push_back(p); };
     void                                    push_front(const_reference p) { int_vector.push_front(p); };

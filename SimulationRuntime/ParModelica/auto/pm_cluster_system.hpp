@@ -189,9 +189,9 @@ struct cluster_cost_comparator_by_id
             // if(lhs_degree == rhs_degree) {
 
             // }
-            return lhs_degree > rhs_degree;
+            return lhs_degree < rhs_degree;
         }
-        return lhs_cost > rhs_cost;
+        return lhs_cost < rhs_cost;
     }
 };
 

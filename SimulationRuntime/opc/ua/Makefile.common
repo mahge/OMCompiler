@@ -3,10 +3,10 @@ OBJS=omc_opc_ua.o open62541.o
 
 all: default
 
-default: libomopcua$(DLLEXT)
-	@test ! -z "$(OMBUILDDIR)" || (echo OMBUILDDIR not set; false)
-	cp libomopcua$(DLLEXT) "$(builddir_lib)"
-	test ! "$(DLLEXT)" = ".dll" || cp libomopcua$(DLLEXT) "$(builddir_bin)"
+default:
+	# @test ! -z "$(OMBUILDDIR)" || (echo OMBUILDDIR not set; false)
+	# cp libomopcua$(DLLEXT) "$(builddir_lib)"
+	# test ! "$(DLLEXT)" = ".dll" || cp libomopcua$(DLLEXT) "$(builddir_bin)"
 
 omc_opc_ua.o: omc_opc_ua.c omc_opc_ua.h open62541.h
 
