@@ -92,9 +92,15 @@ class OMModel
     // typedef LevelSchedulerThreadOblivious<Equation> SchedulerT;
     // typedef DynamicScheduler<Equation> SchedulerT;
     // typedef TaskSystem<Equation> TaskSystemT;
-
+#ifdef USE_LEVEL_SCHEDULER
     typedef StepLevels<Equation> SchedulerT;
-    // typedef ClusterDynamicScheduler<Equation> SchedulerT;
+#else
+  #ifdef USE_FLOW_SCHEDULER
+    typedef ClusterDynamicScheduler<Equation> SchedulerT;
+  #else
+    #error "please specify scheduler. See makefile"
+  #endif
+#endif
     typedef TaskSystem_v2<Equation> TaskSystemT;
 
 

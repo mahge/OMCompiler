@@ -162,7 +162,7 @@ public:
     StepLevels(TaskSystemType& ts) :
       task_system_org(ts)
       , task_system("invalid")  // implement a constrctor with no parameters and remove this
-      , tbb_system(2)
+      , tbb_system(NUM_THREADS)
       , step_executor(task_system.sys_graph, knownthreads)
     {
         GC_allow_register_threads();
@@ -227,10 +227,10 @@ public:
         if(task_system.levels_valid == false)
             task_system.update_node_levels();
 
-        clustetring1::apply(task_system);
-		clustetring1::dump_graph(task_system, std::to_string(this->total_evaluations));
+        // clustetring1::apply(task_system);
+		// clustetring1::dump_graph(task_system, std::to_string(this->total_evaluations));
 
-        // clustetring2::apply(task_system);
+        clustetring2::apply(task_system);
 		// clustetring2::dump_graph(task_system, std::to_string(this->total_evaluations));
 
         clustetring3::apply(task_system);
@@ -345,11 +345,11 @@ public:
 
         double step_cost = step_timer.get_elapsed_time();
         // utility::log("") << "Profiled on step :" << this->total_evaluations << " cost: " << step_cost << std::endl;
-        // std::cout << "S" <<  " : " << this->total_evaluations << " : " << step_cost << " : " << par_current_avg << " : " << par_avg_at_last_sch << std::endl;
+        std::cout << "S" <<  " : " << this->total_evaluations << " : " << step_cost << " : " << par_current_avg << " : " << par_avg_at_last_sch << std::endl;
         step_timer.reset_timer();
 
 
-        task_system.dump_graphml("profiled_" + std::to_string(this->total_evaluations));
+        // task_system.dump_graphml("profiled_" + std::to_string(this->total_evaluations));
 
         this->profiled = true;
     }

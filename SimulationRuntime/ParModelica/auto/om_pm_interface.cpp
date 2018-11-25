@@ -150,10 +150,21 @@ void dump_times(void* v_model) {
     // utility::log("") << "Total ODE added: " << total << std::endl;
     // std::cout << model.ODE_scheduler.execution_timer.get_elapsed_time() << std::endl;
     // std::cout << model.ODE_scheduler.total_evaluations << " : " << model.ODE_scheduler.total_parallel_cost << std::endl;
+#ifdef USE_LEVEL_SCHEDULER
+    utility::log("") << "Using level scheduler" << std::endl;
+#else
+  #ifdef USE_FLOW_SCHEDULER
+    utility::log("") << "Using flow scheduler" << std::endl;
+  #else
+    #error "please specify scheduler. See makefile"
+  #endif
+#endif
+    utility::log("") << "Nr.of threads " << NUM_THREADS << std::endl;
     utility::log("") << "Nr.of ODE evaluations: " << model.ODE_scheduler.total_evaluations << std::endl;
     utility::log("") << "Nr.of profiling ODE Evaluations: " << model.ODE_scheduler.sequential_evaluations << std::endl;
     // utility::log("") << "Total ODE evaluation time : " << model.ODE_scheduler.total_parallel_cost << std::endl;
     utility::log("") << "Total ODE evaluation time : " << model.ODE_scheduler.execution_timer.get_elapsed_time() << std::endl;
+    utility::log("") << "Avg. ODE evaluation time : " << model.ODE_scheduler.execution_timer.get_elapsed_time()/model.ODE_scheduler.parallel_evaluations << std::endl;
     utility::log("") << "Total ODE loading time: " << model.load_system_timer.get_elapsed_time() << std::endl;
     utility::log("") << "Total ODE Clustering time: " << model.ODE_scheduler.clustering_timer.get_elapsed_time() << std::endl;
 }

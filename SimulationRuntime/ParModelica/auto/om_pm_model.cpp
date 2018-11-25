@@ -439,7 +439,7 @@ void OMModel::load_from_json(TaskSystemT& task_system, const std::string& eq_to_
         }
     }
 
-    // std::cout << "Number of tasks      = " << node_count << newl;
+    std::cout << "Number of tasks      = " << node_count << newl;
 
 }
 

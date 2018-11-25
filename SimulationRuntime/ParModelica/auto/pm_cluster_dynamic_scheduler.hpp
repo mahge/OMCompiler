@@ -91,12 +91,19 @@ public:
     PMTimer clustering_timer;
     TaskSystemType& task_system;
 
+    int sequential_evaluations;
+    int total_evaluations;
+    int parallel_evaluations;
+
     ClusterDynamicScheduler(TaskSystemType& task_system)
-        : tbb_system(2)
+        : tbb_system(NUM_THREADS)
         , flow_root(dynamic_graph)
         , flow_graph_created(false)
         , task_system(task_system)
     {
+        sequential_evaluations = 0;
+        parallel_evaluations =0;
+        total_evaluations = 0;
     }
 
     void schedule() {
@@ -166,6 +173,9 @@ public:
         flow_root.try_put( tbb::flow::continue_msg() );
         dynamic_graph.wait_for_all();
         execution_timer.stop_timer();
+
+        total_evaluations++;
+        parallel_evaluations++;
     }
 
 };
